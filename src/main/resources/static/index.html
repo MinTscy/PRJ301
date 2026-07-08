@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LUCY LMS Studio</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navigation">
+      <div class="brand-block">
+        <div class="brand-mark">L</div>
+        <div>
+          <div class="brand-name">LUCY LMS</div>
+          <div class="brand-subtitle">CEFR Studio</div>
+        </div>
+      </div>
+
+      <nav class="side-nav" aria-label="Primary">
+        <a class="nav-item active" href="#workspace">
+          <span class="nav-icon">W</span>
+          Workspace
+        </a>
+        <a class="nav-item" href="/swagger-ui/index.html">
+          <span class="nav-icon">A</span>
+          API Docs
+        </a>
+      </nav>
+
+      <section class="panel compact">
+        <div class="panel-header">
+          <h2>Languages</h2>
+        </div>
+        <div id="languageList" class="language-list"></div>
+      </section>
+
+      <section class="panel compact">
+        <div class="panel-header">
+          <h2>Practice Toolkit</h2>
+        </div>
+        <div id="practiceToolkit" class="toolkit-list"></div>
+      </section>
+    </aside>
+
+    <main id="workspace" class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">CEFR aligned live learning</p>
+          <h1>Plan levels, launch rooms, guide speaking practice.</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="refreshButton" class="icon-button" type="button" title="Refresh data" aria-label="Refresh data">R</button>
+          <a class="button ghost" href="/swagger-ui/index.html">Swagger</a>
+        </div>
+      </header>
+
+      <section class="metrics" aria-label="Summary">
+        <article class="metric">
+          <span class="metric-label">Languages</span>
+          <strong id="languageMetric">0</strong>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Levels</span>
+          <strong id="levelMetric">0</strong>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Selected path</span>
+          <strong id="selectedMetric">--</strong>
+        </article>
+        <article class="metric accent">
+          <span class="metric-label">Live room</span>
+          <strong id="roomMetric">Idle</strong>
+        </article>
+      </section>
+
+      <section class="cefr-band" aria-label="CEFR pathway">
+        <div class="section-bar">
+          <div>
+            <h2>CEFR Pathway</h2>
+            <p class="muted">Inspired by Pre-A1 Starters, A1 Movers, and A2 Flyers practice structure.</p>
+          </div>
+          <span id="cefrScope" class="status-pill neutral">Stage 1 focus</span>
+        </div>
+        <div id="cefrCards" class="cefr-grid"></div>
+      </section>
+
+      <section class="content-grid">
+        <section class="main-column">
+          <div class="section-bar">
+            <div>
+              <h2>Level Map</h2>
+              <p id="levelScope" class="muted">--</p>
+            </div>
+            <div class="segmented" role="group" aria-label="Stage">
+              <button class="segment active" type="button" data-stage="1">Stage 1</button>
+              <button class="segment" type="button" data-stage="2">Stage 2</button>
+              <button class="segment" type="button" data-stage="3">Stage 3</button>
+            </div>
+          </div>
+
+          <div id="levelGrid" class="level-grid" aria-live="polite"></div>
+
+          <section class="detail-band">
+            <div class="section-bar tight">
+              <div>
+                <h2 id="detailTitle">Level detail</h2>
+                <p id="detailMeta" class="muted">Select a level</p>
+              </div>
+              <button id="createRoomButton" class="button primary" type="button" disabled>Create room</button>
+            </div>
+            <div id="levelPedagogy" class="pedagogy-strip"></div>
+            <div id="subLevelList" class="sublevel-list"></div>
+          </section>
+        </section>
+
+        <aside class="right-rail">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Can Do Focus</h2>
+            </div>
+            <div id="canDoPanel" class="can-do-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Live Room</h2>
+              <span id="roomStatus" class="status-pill neutral">Idle</span>
+            </div>
+            <div id="roomSummary" class="room-summary">
+              <span class="empty-state">No live room yet</span>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>10-minute Flow</h2>
+              <button id="timelineRefreshButton" class="icon-button small" type="button" title="Refresh timeline" aria-label="Refresh timeline" disabled>R</button>
+            </div>
+            <div id="timelineView" class="timeline-view">
+              <span class="empty-state">--</span>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Pinned Material</h2>
+            </div>
+            <form id="materialForm" class="material-form">
+              <input id="materialTitle" type="text" placeholder="Title" autocomplete="off" disabled>
+              <div class="form-row">
+                <select id="materialType" disabled>
+                  <option value="SLIDE">Slide</option>
+                  <option value="DOC">Document</option>
+                  <option value="LINK">Link</option>
+                </select>
+                <input id="materialUrl" type="url" placeholder="URL" autocomplete="off" disabled>
+              </div>
+              <button id="pinMaterialButton" class="button secondary" type="submit" disabled>Pin material</button>
+            </form>
+            <div id="materialList" class="material-list"></div>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

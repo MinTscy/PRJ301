@@ -1,0 +1,8 @@
+<!-- Add these directly under the <manifest> element. -->
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+<uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+<!-- Local HTTP development also requires this on the <application> element. -->
+<!-- android:usesCleartextTraffic="true" -->

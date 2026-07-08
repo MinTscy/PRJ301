@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+    --primary: 243 100% 69%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 258 90% 66%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 215 25% 27%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 142 71% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 100% / 0.08;
+    --input: 0 0% 100% / 0.1;
+    --ring: 243 100% 69%;
+    --radius: 1rem;
+    --lucy-ink: 222 47% 11%;
+    --lucy-teal: 142 71% 45%;
+    --lucy-violet: 243 100% 69%;
+    --lucy-coral: 0 84% 60%;
+    --lucy-sky: 199 89% 48%;
+    --lucy-surface: 217 33% 17%;
+    --lucy-sidebar: 221 52% 8%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    @apply bg-primary/35 text-white;
+  }
+}
+
+@layer components {
+  .lucy-grid-bg {
+    background-image:
+      linear-gradient(90deg, hsl(var(--foreground) / 0.025) 1px, transparent 1px),
+      linear-gradient(0deg, hsl(var(--foreground) / 0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .lucy-panel {
+    @apply border border-white/10 bg-white/[0.04] shadow-panel backdrop-blur;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .participant-enter {
+    animation: participant-enter 320ms ease-out both;
+  }
+
+  .audio-wave-bar {
+    transform-origin: bottom;
+    animation: audio-wave 720ms ease-in-out infinite alternate;
+  }
+}
+
+@keyframes participant-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes audio-wave {
+  from {
+    transform: scaleY(0.35);
+    opacity: 0.55;
+  }
+  to {
+    transform: scaleY(1.15);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .participant-enter,
+  .audio-wave-bar {
+    animation: none;
+  }
+}

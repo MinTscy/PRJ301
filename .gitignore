@@ -1,0 +1,33 @@
+target/
+.tools/
+.run/
+.mvn/wrapper/maven-wrapper.jar
+
+### IDE ###
+.idea/
+*.iml
+.vscode/
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Flutter ###
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+
+### Node / Next ###
+frontend/node_modules/
+frontend/.next/
+realtime-service/node_modules/
+realtime-service/dist/
+realtime-service/data/
+
+### .NET ###
+wallet-service/bin/
+wallet-service/obj/
+wallet-service/data/
+wallet-service.tests/bin/
+wallet-service.tests/obj/

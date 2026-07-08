@@ -1,0 +1,5 @@
+# Add to target.build_configurations in the permission_handler post_install block.
+config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+  '$(inherited)',
+  'PERMISSION_MICROPHONE=1',
+]
