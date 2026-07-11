@@ -21,6 +21,7 @@ mobile/build/
 ### Node / Next ###
 frontend/node_modules/
 frontend/.next/
+frontend/*.tsbuildinfo
 realtime-service/node_modules/
 realtime-service/dist/
 realtime-service/data/

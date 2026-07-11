@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
 import {
+  Activity,
+  AlertTriangle,
   Bell,
   Clock3,
   ExternalLink,
@@ -12,6 +14,7 @@ import {
   Gift,
   Hand,
   Hash,
+  Headphones,
   Heart,
   Mic,
   MicOff,
@@ -21,6 +24,8 @@ import {
   Radio,
   RefreshCw,
   Search,
+  Settings2,
+  Signal,
   Star,
   Users,
   Volume2,
@@ -95,6 +100,30 @@ function Waveform({ active }: { active: boolean }) {
       ))}
     </div>
   );
+}
+
+function qualityLabel(value?: number) {
+  if (!value) return "Unknown";
+  if (value <= 2) return "Good";
+  if (value === 3) return "Fair";
+  if (value === 4) return "Weak";
+  return "Poor";
+}
+
+function qualityTone(value?: number) {
+  if (!value) return "text-muted-foreground";
+  if (value <= 2) return "text-emerald-300";
+  if (value === 3) return "text-amber-300";
+  return "text-red-300";
+}
+
+function audioWarningText(warning: ReturnType<typeof useAgoraAudio>["warning"]) {
+  if (warning === "microphone-ended") return "Microphone stopped. Reconnect the device or allow browser permission again.";
+  if (warning === "no-microphone-signal") return "Microphone is open, but no voice signal is detected.";
+  if (warning === "poor-network") return "Agora reports weak network quality. Audio may stutter.";
+  if (warning === "reconnecting") return "Agora is reconnecting audio.";
+  if (warning === "muted-while-speaking") return "You appear to be speaking while muted.";
+  return null;
 }
 
 function SpeakerTile({
@@ -172,6 +201,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const [giftCatalog, setGiftCatalog] = useState<GiftCatalogItem[]>([]);
   const [sendingGiftCode, setSendingGiftCode] = useState<string | null>(null);
   const [giftNotice, setGiftNotice] = useState<{ kind: "sent" | "received"; message: string } | null>(null);
+  const [audioPanelOpen, setAudioPanelOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   const selectedLevel = useMemo(() => levels.find((item) => item.id === levelId) ?? levels[0], [levels, levelId]);
@@ -208,6 +238,20 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
     micMuted: isMuted,
     accessToken
   });
+  const canSpeak = Boolean(currentParticipant && currentParticipant.participantRole !== "audience");
+  const audioStatusLabel =
+    audio.status === "connected"
+      ? audio.connectionState === "RECONNECTING"
+        ? "Audio reconnecting"
+        : `${audio.remoteAudioUids.size} audio streams`
+      : audio.status === "unavailable"
+        ? "Agora not configured"
+        : audio.status === "connecting"
+          ? "Audio connecting"
+          : "Enable audio";
+  const audioWarning = audioWarningText(audio.warning);
+  const uplinkQuality = audio.networkQuality?.uplinkNetworkQuality;
+  const downlinkQuality = audio.networkQuality?.downlinkNetworkQuality;
 
   useEffect(() => {
     setAuthUser(readStoredUser());
@@ -308,7 +352,8 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
 
   useEffect(() => {
     if (audio.status === "error" && audio.error) setError(audio.error);
-  }, [audio.error, audio.status]);
+    if (audio.deviceError) setError(audio.deviceError);
+  }, [audio.deviceError, audio.error, audio.status]);
 
   useEffect(() => {
     if (!currentParticipant) return;
@@ -453,6 +498,10 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
 
   function toggleMic() {
     const nextMuted = !isMuted;
+    if (!nextMuted && !canSpeak) {
+      setError("Raise your hand and wait for moderator approval before enabling the microphone.");
+      return;
+    }
     if (!socketRef.current || !room) {
       setIsMuted(nextMuted);
       return;
@@ -479,6 +528,16 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
         setError(ack.error ?? "Unable to change hand state");
       }
     });
+  }
+
+  async function prepareBrowserAudio() {
+    setError(null);
+    audio.enableAudioPlayback();
+    if (canSpeak) {
+      await audio.requestMicrophoneAccess();
+    } else {
+      await audio.refreshDevices();
+    }
   }
 
   function approveSpeaker(participant: RealtimeParticipant) {
@@ -621,7 +680,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
               </span>
               <button
                 type="button"
-                onClick={audio.enableAudioPlayback}
+                onClick={prepareBrowserAudio}
                 className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 transition-colors hover:bg-white/15"
               >
                 {audio.status === "connected" ? (
@@ -629,15 +688,124 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
                 ) : (
                   <VolumeX className="size-4 text-amber-300" />
                 )}
-                {audio.status === "connected"
-                  ? `${audio.remoteAudioUids.size} audio streams`
-                  : audio.status === "unavailable"
-                    ? "Audio not configured"
-                    : "Enable audio"}
+                {audioStatusLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudioPanelOpen((open) => !open)}
+                className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 transition-colors hover:bg-white/15"
+                aria-expanded={audioPanelOpen}
+              >
+                <Settings2 className="size-4" />
+                Devices
               </button>
             </div>
           </div>
         </section>
+
+        {room && audioPanelOpen ? (
+          <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.035] p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Agora Audio</p>
+                <h3 className="mt-2 text-lg font-black text-white">{audioStatusLabel}</h3>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-muted-foreground">
+                    <Signal className="size-3.5" /> {audio.connectionState}
+                  </span>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 ${qualityTone(uplinkQuality)}`}>
+                    Up {qualityLabel(uplinkQuality)}
+                  </span>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 ${qualityTone(downlinkQuality)}`}>
+                    Down {qualityLabel(downlinkQuality)}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-muted-foreground">
+                    <Mic className="size-3.5" /> {audio.microphonePermission}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" onClick={prepareBrowserAudio}>
+                  <Volume2 className="size-4" /> Enable
+                </Button>
+                <Button type="button" variant="outline" onClick={() => audio.refreshDevices()}>
+                  <RefreshCw className="size-4" /> Refresh
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr_280px]">
+              <label className="grid gap-2 text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
+                Microphone
+                <div className="relative">
+                  <Mic className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <select
+                    className="h-11 w-full rounded-2xl border border-white/10 bg-[#111827] px-9 text-sm text-white"
+                    value={audio.selectedMicrophoneId}
+                    onChange={(event) => audio.setSelectedMicrophoneId(event.target.value)}
+                    disabled={!canSpeak || audio.microphones.length === 0}
+                  >
+                    {audio.microphones.length === 0 ? (
+                      <option value="">No microphone found</option>
+                    ) : (
+                      audio.microphones.map((device) => (
+                        <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </label>
+
+              <label className="grid gap-2 text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
+                Speaker
+                <div className="relative">
+                  <Headphones className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <select
+                    className="h-11 w-full rounded-2xl border border-white/10 bg-[#111827] px-9 text-sm text-white"
+                    value={audio.selectedPlaybackDeviceId}
+                    onChange={(event) => audio.setSelectedPlaybackDeviceId(event.target.value)}
+                    disabled={audio.playbackDevices.length === 0}
+                  >
+                    {audio.playbackDevices.length === 0 ? (
+                      <option value="">Default speaker</option>
+                    ) : (
+                      audio.playbackDevices.map((device) => (
+                        <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </label>
+
+              <div className="grid gap-2 text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
+                Mic signal
+                <div className="flex h-11 items-center gap-3 rounded-2xl border border-white/10 bg-[#111827] px-3">
+                  <Activity className={`size-4 ${audio.microphonePublished ? "text-emerald-300" : "text-muted-foreground"}`} />
+                  <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-emerald-400 transition-all duration-300"
+                      style={{ width: `${Math.min(100, audio.localVolumeLevel)}%` }}
+                    />
+                  </div>
+                  <span className="w-8 text-right font-mono text-[11px] text-white">{Math.round(audio.localVolumeLevel)}</span>
+                </div>
+              </div>
+            </div>
+
+            {audioWarning ? (
+              <p className="mt-4 flex items-start gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                {audioWarning}
+              </p>
+            ) : null}
+
+            {audio.deviceError ? (
+              <p className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+                {audio.deviceError}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         {canCreateRoom ? (
         <section className="mt-7 rounded-3xl border border-white/10 bg-white/[0.025] p-4">
@@ -966,14 +1134,27 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
       {room ? (
       <div className="fixed bottom-6 left-1/2 z-40 w-[min(720px,calc(100vw-2rem))] -translate-x-1/2 rounded-3xl border border-white/10 bg-[#1E293B]/95 p-3 shadow-panel backdrop-blur-2xl">
         <div className="flex items-center gap-3">
-          <Button type="button" size="icon" variant={isMuted ? "destructive" : "secondary"} onClick={toggleMic}>
+          <Button
+            type="button"
+            size="icon"
+            variant={isMuted ? "destructive" : "secondary"}
+            onClick={toggleMic}
+            disabled={!canSpeak && isMuted}
+            aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+          >
             {isMuted ? <MicOff className="size-5" /> : <Mic className="size-5" />}
           </Button>
           <Button type="button" className={`h-14 flex-1 rounded-3xl text-base ${handRaised ? "bg-amber-500 hover:bg-amber-500/90" : ""}`} onClick={toggleHand}>
             <Hand className="size-5" /> {handRaised ? "Hand Raised" : "Raise Hand"}
           </Button>
-          <Button type="button" size="icon" variant="secondary">
-            <Heart className="size-5" />
+          <Button
+            type="button"
+            size="icon"
+            variant="secondary"
+            onClick={() => setAudioPanelOpen((open) => !open)}
+            aria-label="Audio devices"
+          >
+            <Settings2 className="size-5" />
           </Button>
           <Button type="button" size="icon" variant="destructive" onClick={leaveRoom} aria-label="Leave room">
             <X className="size-5" />

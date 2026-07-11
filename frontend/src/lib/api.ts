@@ -196,7 +196,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Request failed: ${response.status}`);
+    let message = text;
+    try {
+      message = (JSON.parse(text) as { message?: string }).message ?? text;
+    } catch {
+      // Keep non-JSON error responses as-is.
+    }
+    throw new Error(message || `Request failed: ${response.status}`);
   }
 
   if (response.status === 204) {
@@ -273,6 +279,14 @@ export const api = {
       headers: {
         Authorization: `Bearer ${token}`
       }
+    }),
+  updateProfile: (token: string, payload: { email: string; displayName: string }) =>
+    request<AuthUser>("/api/auth/me", {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
     }),
   logout: (token: string) =>
     request<void>("/api/auth/logout", {

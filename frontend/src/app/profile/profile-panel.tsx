@@ -9,12 +9,15 @@ import {
   GraduationCap,
   History,
   LogOut,
+  Pencil,
   Podcast,
   ReceiptText,
   RefreshCw,
+  Save,
   UserRound,
   UsersRound,
-  WalletCards
+  WalletCards,
+  X
 } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -29,7 +32,8 @@ import {
   AUTH_SESSION_EVENT,
   AUTH_TOKEN_KEY,
   clearAuthSession,
-  readStoredUser
+  readStoredUser,
+  updateStoredUser
 } from "@/lib/auth-session";
 
 function initials(displayName: string) {
@@ -75,6 +79,12 @@ export function ProfilePanel() {
   const [walletLoading, setWalletLoading] = useState(true);
   const [walletError, setWalletError] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [draftDisplayName, setDraftDisplayName] = useState("");
+  const [draftEmail, setDraftEmail] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [topUpAmount, setTopUpAmount] = useState(500);
   const [customAmount, setCustomAmount] = useState("");
   const [provider, setProvider] = useState<"SANDBOX" | "MOCK_MOMO" | "MOCK_VNPAY">("SANDBOX");
@@ -118,6 +128,45 @@ export function ProfilePanel() {
     clearAuthSession();
     router.replace("/auth");
     router.refresh();
+  }
+
+  function startEditingProfile() {
+    if (!user) return;
+    setDraftDisplayName(user.displayName);
+    setDraftEmail(user.email);
+    setProfileMessage(null);
+    setProfileError(null);
+    setEditingProfile(true);
+  }
+
+  async function saveProfile() {
+    const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
+    const displayName = draftDisplayName.trim();
+    const email = draftEmail.trim();
+    setProfileMessage(null);
+    setProfileError(null);
+
+    if (!token) {
+      setProfileError("Your session has expired. Please sign in again.");
+      return;
+    }
+    if (!displayName || !email) {
+      setProfileError("Display name and email are required.");
+      return;
+    }
+
+    setProfileSaving(true);
+    try {
+      const updatedUser = await api.updateProfile(token, { displayName, email });
+      setUser(updatedUser);
+      updateStoredUser(updatedUser);
+      setEditingProfile(false);
+      setProfileMessage("Profile updated successfully.");
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Unable to update your profile.");
+    } finally {
+      setProfileSaving(false);
+    }
   }
 
   async function submitTopUp() {
@@ -188,6 +237,11 @@ export function ProfilePanel() {
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="truncate text-3xl font-black text-white">{user.displayName}</h2>
                   <Badge variant={roleVariant(user)}>{roleLabel(user)}</Badge>
+                  {!editingProfile ? (
+                    <Button size="sm" variant="outline" onClick={startEditingProfile}>
+                      <Pencil className="size-4" /> Edit profile
+                    </Button>
+                  ) : null}
                 </div>
                 <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
                   <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
@@ -201,6 +255,63 @@ export function ProfilePanel() {
                 </div>
               </div>
             </div>
+
+            {editingProfile ? (
+              <form
+                className="mt-6 grid gap-4 border-t border-white/10 pt-6"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void saveProfile();
+                }}
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-bold text-white">
+                    Display name
+                    <Input
+                      autoFocus
+                      maxLength={120}
+                      value={draftDisplayName}
+                      onChange={(event) => setDraftDisplayName(event.target.value)}
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-white">
+                    Email
+                    <Input
+                      type="email"
+                      maxLength={180}
+                      value={draftEmail}
+                      onChange={(event) => setDraftEmail(event.target.value)}
+                    />
+                  </label>
+                </div>
+                {profileError ? (
+                  <div className="rounded-2xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300">
+                    {profileError}
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap gap-3">
+                  <Button type="submit" disabled={profileSaving}>
+                    <Save className="size-4" /> {profileSaving ? "Saving..." : "Save changes"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={profileSaving}
+                    onClick={() => {
+                      setEditingProfile(false);
+                      setProfileError(null);
+                    }}
+                  >
+                    <X className="size-4" /> Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : null}
+            {profileMessage ? (
+              <div className="mt-5 flex items-center gap-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-300">
+                <CheckCircle2 className="size-4" /> {profileMessage}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 

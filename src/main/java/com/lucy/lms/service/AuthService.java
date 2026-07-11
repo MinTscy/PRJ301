@@ -4,6 +4,7 @@ import com.lucy.lms.dto.AuthResponseDTO;
 import com.lucy.lms.dto.AuthUserDTO;
 import com.lucy.lms.dto.LoginRequestDTO;
 import com.lucy.lms.dto.RegisterRequestDTO;
+import com.lucy.lms.dto.UpdateProfileRequestDTO;
 import com.lucy.lms.entity.AppUser;
 import com.lucy.lms.entity.AuthSession;
 import com.lucy.lms.repository.AppUserRepository;
@@ -75,6 +76,23 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthUserDTO me(String authorizationHeader) {
         return toUserDTO(resolveSession(authorizationHeader).getUser());
+    }
+
+    @Transactional
+    public AuthUserDTO updateProfile(String authorizationHeader, UpdateProfileRequestDTO request) {
+        AppUser user = resolveSession(authorizationHeader).getUser();
+        String email = normalizeEmail(request.email());
+
+        appUserRepository.findByEmail(email)
+                .filter(existingUser -> !existingUser.getId().equals(user.getId()))
+                .ifPresent(existingUser -> {
+                    throw new BadRequestException("Email is already registered");
+                });
+
+        user.setEmail(email);
+        user.setDisplayName(request.displayName().trim());
+        user.setUpdatedAt(Instant.now());
+        return toUserDTO(user);
     }
 
     @Transactional(readOnly = true)
