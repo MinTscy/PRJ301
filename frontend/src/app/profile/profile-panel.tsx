@@ -19,6 +19,7 @@ import {
   WalletCards,
   X
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { EmptyState } from "@/components/empty-state";
@@ -503,7 +504,13 @@ export function ProfilePanel() {
             </Card>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><Podcast className="size-5 text-primary" /> Podcasts</CardTitle></CardHeader>
-              <CardContent><EmptyCollection>No podcasts published yet.</EmptyCollection></CardContent>
+              <CardContent>
+                <Button asChild variant="outline">
+                  <Link href="/podcasts">
+                    Open podcast library
+                  </Link>
+                </Button>
+              </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="size-5 text-lucy-coral" /> Posts</CardTitle></CardHeader>

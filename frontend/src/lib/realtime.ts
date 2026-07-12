@@ -1,5 +1,5 @@
 import { io, type Socket } from "socket.io-client";
-import type { AccountRole } from "./api";
+import type { AccountRole, PodcastRecording } from "./api";
 
 export const REALTIME_BASE_URL =
   process.env.NEXT_PUBLIC_REALTIME_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:3001";
@@ -77,3 +77,67 @@ export function createRealtimeSocket(): Socket {
     reconnection: true
   });
 }
+
+export function podcastAudioUrl(podcast: PodcastRecording): string | null {
+  if (!podcast.audioUrl) return null;
+  if (/^https?:\/\//i.test(podcast.audioUrl)) return podcast.audioUrl;
+  return `${REALTIME_BASE_URL}${podcast.audioUrl.startsWith("/") ? "" : "/"}${podcast.audioUrl}`;
+}
+
+export const realtimeApi = {
+  podcasts: async (roomCode?: string) => {
+    const search = roomCode ? `?roomCode=${encodeURIComponent(roomCode)}` : "";
+    const response = await fetch(`${REALTIME_BASE_URL}/api/realtime/podcasts${search}`, {
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(payload?.message ?? `Unable to load podcasts: ${response.status}`);
+    }
+
+    return response.json() as Promise<PodcastRecording[]>;
+  },
+  startRecording: async (token: string, payload: { roomCode: string; title: string }) => {
+    const response = await fetch(`${REALTIME_BASE_URL}/api/realtime/recordings`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(payload?.message ?? `Unable to start recording: ${response.status}`);
+    }
+
+    return response.json() as Promise<PodcastRecording>;
+  },
+  uploadRecordingAudio: async (
+    token: string,
+    recordingId: string,
+    audio: Blob,
+    durationSeconds: number
+  ) => {
+    const response = await fetch(
+      `${REALTIME_BASE_URL}/api/realtime/recordings/${encodeURIComponent(recordingId)}/audio?durationSeconds=${durationSeconds}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": audio.type || "application/octet-stream"
+        },
+        body: audio
+      }
+    );
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(payload?.message ?? `Unable to publish recording: ${response.status}`);
+    }
+
+    return response.json() as Promise<PodcastRecording>;
+  }
+};

@@ -184,6 +184,20 @@ export type GiftSendResponse = {
   realtimeDelivered: boolean;
 };
 
+export type PodcastRecording = {
+  id: string;
+  roomCode: string;
+  title: string;
+  creatorPersonaId: string;
+  creatorDisplayName: string;
+  status: "RECORDING" | "READY";
+  audioUrl: string | null;
+  contentType: string | null;
+  durationSeconds: number | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     cache: "no-store",

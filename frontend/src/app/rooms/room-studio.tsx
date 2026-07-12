@@ -20,24 +20,27 @@ import {
   MicOff,
   MoreHorizontal,
   Pin,
+  Podcast,
   Presentation,
   Radio,
   RefreshCw,
   Search,
   Settings2,
   Signal,
+  Square,
   Star,
   Users,
   Volume2,
   VolumeX,
   X
 } from "lucide-react";
-import type { AuthUser, GiftCatalogItem, GiftEvent, Language, Level, LiveRoom, PinnedMaterial, RoomTimeline } from "@/lib/api";
+import type { AuthUser, GiftCatalogItem, GiftEvent, Language, Level, LiveRoom, PinnedMaterial, PodcastRecording, RoomTimeline } from "@/lib/api";
 import { API_BASE_URL, walletApi } from "@/lib/api";
 import { AUTH_SESSION_EVENT, readStoredUser } from "@/lib/auth-session";
 import { getCefrBand } from "@/lib/design-system";
 import {
   createRealtimeSocket,
+  realtimeApi,
   type RealtimeAck,
   type RealtimeParticipant,
   type RealtimeRoomState
@@ -126,6 +129,20 @@ function audioWarningText(warning: ReturnType<typeof useAgoraAudio>["warning"]) 
   return null;
 }
 
+function formatRecordingElapsed(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remaining = seconds % 60;
+  return `${minutes}:${remaining.toString().padStart(2, "0")}`;
+}
+
+function recorderMimeType() {
+  if (typeof MediaRecorder === "undefined") return "";
+  if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) return "audio/webm;codecs=opus";
+  if (MediaRecorder.isTypeSupported("audio/webm")) return "audio/webm";
+  if (MediaRecorder.isTypeSupported("audio/mp4")) return "audio/mp4";
+  return "";
+}
+
 function SpeakerTile({
   participant,
   speaking,
@@ -202,7 +219,17 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const [sendingGiftCode, setSendingGiftCode] = useState<string | null>(null);
   const [giftNotice, setGiftNotice] = useState<{ kind: "sent" | "received"; message: string } | null>(null);
   const [audioPanelOpen, setAudioPanelOpen] = useState(false);
+  const [recordingStatus, setRecordingStatus] = useState<"idle" | "starting" | "recording" | "publishing" | "published">("idle");
+  const [recordingTitle, setRecordingTitle] = useState("");
+  const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
+  const [recordingMessage, setRecordingMessage] = useState<string | null>(null);
+  const [publishedPodcast, setPublishedPodcast] = useState<PodcastRecording | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<BlobPart[]>([]);
+  const recordingIdRef = useRef<string | null>(null);
+  const recordingStartedAtRef = useRef<number | null>(null);
 
   const selectedLevel = useMemo(() => levels.find((item) => item.id === levelId) ?? levels[0], [levels, levelId]);
   const band = getCefrBand(selectedLevel?.levelNumber);
@@ -230,7 +257,9 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const canModerate =
     currentParticipant?.accountRole === "LUCY_PRO" || currentParticipant?.accountRole === "LUCY_SUPER";
   const canCreateRoom = authUser?.role === "LUCY_PRO" || authUser?.role === "LUCY_SUPER";
+  const canRecordPodcast = authUser?.role === "LUCY_SUPER";
   const isLearner = authUser?.role === "LUCY";
+  const defaultRecordingTitle = `${room?.levelTitle ?? selectedLevel?.title ?? "Live room"} recap`;
   const audio = useAgoraAudio({
     roomCode: room?.roomCode,
     personaId: currentPersonaId ?? undefined,
@@ -361,6 +390,144 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
     setHandRaised(currentParticipant.handRaised);
   }, [currentParticipant]);
 
+  useEffect(() => {
+    if (recordingStatus !== "recording") return;
+    const timer = window.setInterval(() => {
+      const startedAt = recordingStartedAtRef.current;
+      if (startedAt) {
+        setRecordingElapsedSeconds(Math.max(0, Math.round((Date.now() - startedAt) / 1000)));
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [recordingStatus]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.ondataavailable = null;
+        mediaRecorderRef.current.onstop = null;
+        mediaRecorderRef.current.stop();
+      }
+      stopRecordingStream();
+    };
+  }, []);
+
+  function stopRecordingStream() {
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recordingStreamRef.current = null;
+  }
+
+  async function startSuperRecording() {
+    const token = accessToken ?? window.localStorage.getItem("lucy.accessToken") ?? undefined;
+    if (!room || !token || !canRecordPodcast) {
+      setError("Only a signed-in Super account can record a room podcast.");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("This browser does not support in-room audio recording.");
+      return;
+    }
+    if (recordingStatus === "recording" || recordingStatus === "starting") return;
+
+    setError(null);
+    setRecordingMessage(null);
+    setPublishedPodcast(null);
+    setRecordingStatus("starting");
+
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      const title = recordingTitle.trim() || defaultRecordingTitle;
+      const recording = await realtimeApi.startRecording(token, {
+        roomCode: room.roomCode,
+        title
+      });
+      const mimeType = recorderMimeType();
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recordingIdRef.current = recording.id;
+      recordingStartedAtRef.current = Date.now();
+      recordingChunksRef.current = [];
+      recordingStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      setRecordingTitle(title);
+      setRecordingElapsedSeconds(0);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordingChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        void publishStoppedRecording();
+      };
+      recorder.start(1000);
+      setRecordingStatus("recording");
+      setRecordingMessage("Recording started. Stop when this room recap is ready to publish.");
+    } catch (err) {
+      stream?.getTracks().forEach((track) => track.stop());
+      setRecordingStatus("idle");
+      setError(err instanceof Error ? err.message : "Unable to start recording.");
+    }
+  }
+
+  function stopSuperRecording() {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+    setRecordingStatus("publishing");
+    setRecordingElapsedSeconds(
+      recordingStartedAtRef.current
+        ? Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000))
+        : recordingElapsedSeconds
+    );
+    recorder.stop();
+  }
+
+  async function publishStoppedRecording() {
+    const token = accessToken ?? window.localStorage.getItem("lucy.accessToken") ?? undefined;
+    const recordingId = recordingIdRef.current;
+    const startedAt = recordingStartedAtRef.current;
+    const chunks = recordingChunksRef.current;
+    const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
+
+    stopRecordingStream();
+    mediaRecorderRef.current = null;
+    recordingIdRef.current = null;
+    recordingStartedAtRef.current = null;
+    recordingChunksRef.current = [];
+
+    if (!token || !recordingId) {
+      setRecordingStatus("idle");
+      setError("Recording session is missing authentication. Please sign in again.");
+      return;
+    }
+    if (chunks.length === 0) {
+      setRecordingStatus("idle");
+      setError("Recording did not capture any audio.");
+      return;
+    }
+
+    setRecordingStatus("publishing");
+    setError(null);
+    setRecordingMessage("Uploading audio and publishing podcast...");
+    try {
+      const audioBlob = new Blob(chunks, { type: mimeType });
+      const durationSeconds = startedAt
+        ? Math.max(1, Math.round((Date.now() - startedAt) / 1000))
+        : Math.max(1, recordingElapsedSeconds);
+      const podcast = await realtimeApi.uploadRecordingAudio(token, recordingId, audioBlob, durationSeconds);
+      setPublishedPodcast(podcast);
+      setRecordingStatus("published");
+      setRecordingMessage("Podcast published. Learners can now replay it from the Podcast library.");
+    } catch (err) {
+      setRecordingStatus("idle");
+      setError(err instanceof Error ? err.message : "Unable to publish podcast recording.");
+    }
+  }
+
   async function createRoom() {
     if (!selectedLevel) return;
     setError(null);
@@ -420,6 +587,9 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   }
 
   function leaveRoom() {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      stopSuperRecording();
+    }
     setRoom(null);
     setTimeline(null);
     setMaterials([]);
@@ -912,6 +1082,88 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
                 ))
               )}
             </div>
+          </section>
+        ) : null}
+
+        {room && canRecordPodcast ? (
+          <section className="mt-8 rounded-3xl border border-emerald-500/25 bg-emerald-500/[0.07] p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Super Recorder</p>
+                <h3 className="mt-2 flex items-center gap-2 text-lg font-black text-white">
+                  <Podcast className="size-5 text-emerald-300" />
+                  Record this room as a podcast
+                </h3>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Capture your microphone audio, publish it to the realtime podcast store, and let learners replay it after class.
+                </p>
+              </div>
+              <Badge variant={recordingStatus === "recording" ? "coral" : recordingStatus === "published" ? "teal" : "outline"}>
+                {recordingStatus === "recording"
+                  ? `Recording ${formatRecordingElapsed(recordingElapsedSeconds)}`
+                  : recordingStatus === "publishing"
+                    ? "Publishing"
+                    : recordingStatus === "published"
+                      ? "Published"
+                      : "Ready"}
+              </Badge>
+            </div>
+
+            <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+              <label className="grid gap-2 text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
+                Episode title
+                <Input
+                  value={recordingTitle}
+                  onChange={(event) => setRecordingTitle(event.target.value)}
+                  placeholder={defaultRecordingTitle}
+                  disabled={recordingStatus === "recording" || recordingStatus === "publishing"}
+                />
+              </label>
+              <div className="flex items-end gap-2">
+                {recordingStatus === "recording" ? (
+                  <Button type="button" variant="destructive" className="h-10" onClick={stopSuperRecording}>
+                    <Square className="size-4" />
+                    Stop and publish
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    className="h-10"
+                    onClick={startSuperRecording}
+                    disabled={recordingStatus === "starting" || recordingStatus === "publishing"}
+                  >
+                    <Podcast className="size-4" />
+                    {recordingStatus === "starting" ? "Starting..." : "Record"}
+                  </Button>
+                )}
+                <Button asChild type="button" variant="outline" className="h-10">
+                  <a href={`/podcasts?roomCode=${encodeURIComponent(room.roomCode)}`}>
+                    Listen back
+                  </a>
+                </Button>
+              </div>
+            </div>
+
+            {recordingMessage ? (
+              <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-200">
+                {recordingMessage}
+              </div>
+            ) : null}
+            {publishedPodcast ? (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                <div className="min-w-0">
+                  <div className="truncate font-bold text-white">{publishedPodcast.title}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {publishedPodcast.roomCode} · {publishedPodcast.durationSeconds ?? recordingElapsedSeconds}s
+                  </div>
+                </div>
+                <Button asChild size="sm" variant="secondary">
+                  <a href={`/podcasts?roomCode=${encodeURIComponent(publishedPodcast.roomCode)}`}>
+                    Open podcast
+                  </a>
+                </Button>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
