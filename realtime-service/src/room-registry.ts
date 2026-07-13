@@ -42,6 +42,11 @@ export class RoomRegistry {
     return [...(room?.participants.values() ?? [])].find((participant) => participant.personaId === personaId) ?? null;
   }
 
+  findParticipantByAuthPersonaId(roomCode: string, authPersonaId: string): ParticipantState | null {
+    const room = this.rooms.get(roomCode);
+    return [...(room?.participants.values() ?? [])].find((participant) => participant.authPersonaId === authPersonaId) ?? null;
+  }
+
   updateTimeline(roomCode: string, timeline: RoomTimeline): { changed: boolean; previousStep: number | null } {
     const room = this.getOrCreate(roomCode);
     const previousStep = room.timeline?.currentStep?.subOrder ?? null;

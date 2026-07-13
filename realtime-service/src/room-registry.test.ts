@@ -7,10 +7,12 @@ function participant(overrides: Partial<ParticipantState> = {}): ParticipantStat
   return {
     socketId: "socket-1",
     personaId: "persona-1",
+    authPersonaId: undefined,
     agoraUid: 1001,
     displayName: "Learner",
     accountRole: "LUCY",
     participantRole: "audience",
+    anonymous: false,
     micMuted: true,
     handRaised: false,
     joinedAt: "2026-06-18T00:00:00Z",
@@ -30,6 +32,18 @@ test("tracks room participants and moderation state", () => {
     participantRole: "speaker"
   });
   assert.equal(approved?.state.participants[0].participantRole, "speaker");
+});
+
+test("finds anonymous learner participants by authenticated persona", () => {
+  const registry = new RoomRegistry();
+  registry.join("LUCY-ROOM", participant({
+    personaId: "anonymous-1",
+    authPersonaId: "persona-1",
+    anonymous: true
+  }));
+
+  assert.equal(registry.findParticipant("LUCY-ROOM", "anonymous-1")?.displayName, "Learner");
+  assert.equal(registry.findParticipantByAuthPersonaId("LUCY-ROOM", "persona-1")?.personaId, "anonymous-1");
 });
 
 test("detects timeline step transitions", () => {

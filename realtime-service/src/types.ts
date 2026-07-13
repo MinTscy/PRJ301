@@ -48,10 +48,12 @@ export type RoomTimeline = {
 export type ParticipantState = {
   socketId: string;
   personaId: string;
+  authPersonaId?: string;
   agoraUid: number;
   displayName: string;
   accountRole: AccountRole;
   participantRole: ParticipantRole;
+  anonymous: boolean;
   micMuted: boolean;
   handRaised: boolean;
   joinedAt: string;

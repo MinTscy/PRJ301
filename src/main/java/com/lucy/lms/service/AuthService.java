@@ -70,6 +70,7 @@ public class AuthService {
         Instant now = Instant.now();
         user.setLastLoginAt(now);
         user.setUpdatedAt(now);
+        appUserRepository.saveAndFlush(user);
         return createSession(user, now);
     }
 

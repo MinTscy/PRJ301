@@ -7,10 +7,12 @@ export const REALTIME_BASE_URL =
 export type RealtimeParticipant = {
   socketId: string;
   personaId: string;
+  authPersonaId?: string;
   agoraUid: number;
   displayName: string;
   accountRole: AccountRole;
   participantRole: "audience" | "speaker" | "moderator";
+  anonymous: boolean;
   micMuted: boolean;
   handRaised: boolean;
   joinedAt: string;

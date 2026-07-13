@@ -8,6 +8,8 @@ import {
   Bell,
   Clock3,
   ExternalLink,
+  Eye,
+  EyeOff,
   FileText,
   Crown,
   Flame,
@@ -64,6 +66,36 @@ const giftIcons: Record<string, typeof Gift> = {
   ROCKET: Flame,
   CROWN: Crown
 };
+
+const LEARNER_ANONYMOUS_KEY = "lucy.room.learnerAnonymous";
+const ANONYMOUS_PERSONA_KEY = "lucy.anonymousPersona";
+const ANONYMOUS_DISPLAY_NAME_KEY = "lucy.anonymousDisplayName";
+
+function readLearnerAnonymousPreference() {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(LEARNER_ANONYMOUS_KEY) !== "false";
+}
+
+function writeLearnerAnonymousPreference(anonymous: boolean) {
+  window.localStorage.setItem(LEARNER_ANONYMOUS_KEY, anonymous ? "true" : "false");
+}
+
+function createAnonymousPersonaId() {
+  return `anonymous_${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
+}
+
+function readAnonymousIdentity() {
+  const personaId =
+    window.sessionStorage.getItem(ANONYMOUS_PERSONA_KEY) ?? createAnonymousPersonaId();
+  window.sessionStorage.setItem(ANONYMOUS_PERSONA_KEY, personaId);
+
+  const suffix = personaId.replace(/^anonymous_/, "").replace(/-/g, "").slice(0, 4).toUpperCase();
+  const displayName =
+    window.sessionStorage.getItem(ANONYMOUS_DISPLAY_NAME_KEY) ?? `Anonymous Learner ${suffix}`;
+  window.sessionStorage.setItem(ANONYMOUS_DISPLAY_NAME_KEY, displayName);
+
+  return { personaId, displayName };
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -212,6 +244,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | undefined>();
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [learnerAnonymous, setLearnerAnonymous] = useState(true);
   const [roomSearch, setRoomSearch] = useState("");
   const [roomSearchResult, setRoomSearchResult] = useState<LiveRoom | null>(null);
   const [roomSearchLoading, setRoomSearchLoading] = useState(false);
@@ -259,6 +292,8 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const canCreateRoom = authUser?.role === "LUCY_PRO" || authUser?.role === "LUCY_SUPER";
   const canRecordPodcast = authUser?.role === "LUCY_SUPER";
   const isLearner = authUser?.role === "LUCY";
+  const activeRoomIdentity =
+    currentParticipant?.displayName ?? (learnerAnonymous ? "Anonymous Learner" : authUser?.displayName ?? "Learner");
   const defaultRecordingTitle = `${room?.levelTitle ?? selectedLevel?.title ?? "Live room"} recap`;
   const audio = useAgoraAudio({
     roomCode: room?.roomCode,
@@ -284,6 +319,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
 
   useEffect(() => {
     setAuthUser(readStoredUser());
+    setLearnerAnonymous(readLearnerAnonymousPreference());
     const token = window.localStorage.getItem("lucy.accessToken");
     if (token) {
       void walletApi.giftCatalog(token).then(setGiftCatalog).catch(() => setGiftCatalog([]));
@@ -316,16 +352,13 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
 
     const socket = createRealtimeSocket();
     socketRef.current = socket;
-    const storedUser = window.localStorage.getItem("lucy.user");
     const accessToken = window.localStorage.getItem("lucy.accessToken") ?? undefined;
     setAccessToken(accessToken);
-    const authUser = storedUser
-      ? (JSON.parse(storedUser) as { personaId: string; displayName: string })
-      : null;
-    const anonymousPersona =
-      window.sessionStorage.getItem("lucy.anonymousPersona") ?? `anonymous_${crypto.randomUUID()}`;
-    window.sessionStorage.setItem("lucy.anonymousPersona", anonymousPersona);
-    const personaId = authUser?.personaId ?? anonymousPersona;
+    const activeUser = authUser ?? readStoredUser();
+    const shouldUseAnonymous = !activeUser || (activeUser.role === "LUCY" && learnerAnonymous);
+    const anonymousIdentity = readAnonymousIdentity();
+    const personaId = shouldUseAnonymous ? anonymousIdentity.personaId : activeUser.personaId;
+    const displayName = shouldUseAnonymous ? anonymousIdentity.displayName : activeUser.displayName;
     setCurrentPersonaId(personaId);
 
     socket.on("connect", () => {
@@ -335,8 +368,9 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
         {
           roomCode: room.roomCode,
           personaId,
-          displayName: authUser?.displayName ?? "Anonymous Learner",
-          accessToken
+          displayName,
+          accessToken,
+          anonymous: shouldUseAnonymous
         },
         (ack: RealtimeAck) => {
           if (ack.ok && ack.state) {
@@ -376,8 +410,9 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
       setRealtimeConnected(false);
       setRealtimeState(null);
       setAccessToken(undefined);
+      setCurrentPersonaId(null);
     };
-  }, [room]);
+  }, [authUser, learnerAnonymous, room]);
 
   useEffect(() => {
     if (audio.status === "error" && audio.error) setError(audio.error);
@@ -596,6 +631,15 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
     setActiveMaterialId(null);
     setError(null);
     setGiftNotice(null);
+  }
+
+  function updateLearnerIdentityMode(anonymous: boolean) {
+    if (!isLearner || learnerAnonymous === anonymous) return;
+    writeLearnerAnonymousPreference(anonymous);
+    setLearnerAnonymous(anonymous);
+    setGiftNotice(null);
+    setError(null);
+    setHandRaised(false);
   }
 
   async function sendGift(gift: GiftCatalogItem) {
@@ -974,6 +1018,39 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
                 {audio.deviceError}
               </p>
             ) : null}
+          </section>
+        ) : null}
+
+        {room && isLearner ? (
+          <section className="mt-5 rounded-3xl border border-emerald-500/25 bg-emerald-500/[0.06] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Learner Identity</p>
+                <h3 className="mt-2 text-lg font-black text-white">
+                  {learnerAnonymous ? "Anonymous in this room" : "Showing your profile name"}
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Current room name: <span className="font-bold text-white">{activeRoomIdentity}</span>
+                </p>
+              </div>
+              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                {learnerAnonymous ? (
+                  <EyeOff className="size-5 text-emerald-300" />
+                ) : (
+                  <Eye className="size-5 text-violet-300" />
+                )}
+                <span className="text-sm font-black text-white">Anonymous</span>
+                <input
+                  className="sr-only"
+                  type="checkbox"
+                  checked={learnerAnonymous}
+                  onChange={(event) => updateLearnerIdentityMode(event.target.checked)}
+                />
+                <span className={`relative h-6 w-11 rounded-full transition-colors ${learnerAnonymous ? "bg-emerald-500" : "bg-white/15"}`}>
+                  <span className={`absolute left-1 top-1 size-4 rounded-full bg-white transition-transform ${learnerAnonymous ? "translate-x-5" : ""}`} />
+                </span>
+              </label>
+            </div>
           </section>
         ) : null}
 

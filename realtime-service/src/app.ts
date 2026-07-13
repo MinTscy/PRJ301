@@ -22,7 +22,8 @@ const joinSchema = z.object({
   roomCode: z.string().trim().min(1).max(50),
   personaId: z.string().trim().min(3).max(80),
   displayName: z.string().trim().min(1).max(120),
-  accessToken: z.string().optional()
+  accessToken: z.string().optional(),
+  anonymous: z.boolean().default(false)
 });
 
 const micSchema = z.object({ muted: z.boolean() });
@@ -188,7 +189,9 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
       }
       const payload = giftTransferSchema.parse(request.body);
       const roomCode = payload.roomCode.trim().toUpperCase();
-      const sender = registry.findParticipant(roomCode, payload.senderPersonaId);
+      const sender =
+        registry.findParticipant(roomCode, payload.senderPersonaId) ??
+        registry.findParticipantByAuthPersonaId(roomCode, payload.senderPersonaId);
       const host = registry.snapshot(roomCode).participants.find(
         (participant) => participant.participantRole === "moderator"
       );
@@ -230,13 +233,18 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
         const accountRole: AccountRole = authUser?.role ?? "LUCY";
         const participantRole: ParticipantRole =
           accountRole === "LUCY_PRO" || accountRole === "LUCY_SUPER" ? "moderator" : "audience";
+        const anonymous = accountRole === "LUCY" && payload.anonymous;
+        const personaId = anonymous ? payload.personaId : authUser?.personaId ?? payload.personaId;
+        const displayName = anonymous ? payload.displayName : authUser?.displayName ?? payload.displayName;
         const participant: ParticipantState = {
           socketId: socket.id,
-          personaId: authUser?.personaId ?? payload.personaId,
-          agoraUid: agoraTokens.toAgoraUid(authUser?.personaId ?? payload.personaId),
-          displayName: authUser?.displayName ?? payload.displayName,
+          personaId,
+          authPersonaId: authUser?.personaId,
+          agoraUid: agoraTokens.toAgoraUid(personaId),
+          displayName,
           accountRole,
           participantRole,
+          anonymous,
           micMuted: participantRole === "audience",
           handRaised: false,
           joinedAt: new Date().toISOString()
@@ -390,12 +398,14 @@ function authorizeAudioRole(
   authUser: AuthUser | null,
   registry: RoomRegistry
 ) {
+  const participant = registry.findParticipant(roomCode, personaId);
   if (authUser && authUser.personaId !== personaId) {
-    throw new Error("Token persona does not match requested persona.");
+    if (authUser.role !== "LUCY" || !participant?.anonymous || participant.authPersonaId !== authUser.personaId) {
+      throw new Error("Token persona does not match requested persona.");
+    }
   }
   if (requestedRole === "audience") return;
   if (authUser?.role === "LUCY_PRO" || authUser?.role === "LUCY_SUPER") return;
-  const participant = registry.findParticipant(roomCode, personaId);
   if (participant?.participantRole !== "speaker") {
     throw new Error("Speaker token requires moderator approval.");
   }
