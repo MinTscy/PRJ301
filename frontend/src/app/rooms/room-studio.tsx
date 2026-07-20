@@ -98,11 +98,17 @@ function readAnonymousIdentity() {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? "GET";
+  const headers = new Headers(init?.headers);
+  
+  // Only add Content-Type for requests with a body
+  if (method !== "GET" && method !== "HEAD" && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json"
-    },
-    ...init
+    ...init,
+    headers,
   });
 
   if (!response.ok) {

@@ -46,7 +46,7 @@ class AuthServiceTest {
 
         AuthUserDTO updated = authService.updateProfile(
                 "Bearer test-token",
-                new UpdateProfileRequestDTO("  NEW@Example.com ", "  New Name  ")
+                new UpdateProfileRequestDTO("  NEW@Example.com ", "  New Name  ", null, null, null, null, null, null, null, null, null)
         );
 
         assertEquals("new@example.com", updated.email());
@@ -66,7 +66,7 @@ class AuthServiceTest {
                 BadRequestException.class,
                 () -> authService.updateProfile(
                         "Bearer test-token",
-                        new UpdateProfileRequestDTO("taken@example.com", "Owner")
+                        new UpdateProfileRequestDTO("taken@example.com", "Owner", null, null, null, null, null, null, null, null, null)
                 )
         );
 

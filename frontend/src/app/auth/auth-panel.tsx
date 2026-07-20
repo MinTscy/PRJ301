@@ -23,12 +23,21 @@ const roles: Array<{ value: AccountRole; label: string; helper: string }> = [
 ];
 
 async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? "GET";
+  const headers: Record<string, string> = init?.headers instanceof Headers
+    ? Object.fromEntries(init.headers)
+    : { ...(init?.headers as Record<string, string>) };
+  
+  // Only add Content-Type for requests with a body
+  if (method !== "GET" && method !== "HEAD") {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  const { headers: _, ...initWithoutHeaders } = init ?? {};
+  
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers
-    },
-    ...init
+    headers,
+    ...initWithoutHeaders
   });
 
   if (!response.ok) {

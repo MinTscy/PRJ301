@@ -206,14 +206,28 @@ export type PodcastRecording = {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? "GET";
+  const headers: Record<string, string> = init?.headers instanceof Headers
+    ? Object.fromEntries(init.headers)
+    : { ...(init?.headers as Record<string, string>) };
+  
+  // Only add Content-Type for requests with a body
+  if (method !== "GET" && method !== "HEAD") {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  const { headers: _, ...initWithoutHeaders } = init ?? {};
+  
   const response = await fetch(`${API_BASE_URL}${path}`, {
     cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers
-    },
-    ...init
+    headers,
+    ...initWithoutHeaders
   });
+  // Debug log to help diagnose 415 errors in development
+  try {
+    // eslint-disable-next-line no-console
+    console.debug("API Request:", method, path, { headers, body: initWithoutHeaders?.body });
+  } catch {}
 
   if (!response.ok) {
     const text = await response.text();
@@ -234,14 +248,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function walletRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? "GET";
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    ...(init?.headers instanceof Headers
+      ? Object.fromEntries(init.headers)
+      : (init?.headers as Record<string, string>))
+  };
+  
+  // Only add Content-Type for requests with a body
+  if (method !== "GET" && method !== "HEAD") {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  const { headers: _, ...initWithoutHeaders } = init ?? {};
+  
   const response = await fetch(`${WALLET_BASE_URL}${path}`, {
     cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...init?.headers
-    },
-    ...init
+    headers,
+    ...initWithoutHeaders
   });
 
   if (!response.ok) {
