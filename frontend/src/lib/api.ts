@@ -134,6 +134,13 @@ export type AuthUser = {
   role: AccountRole;
   personaId: string;
   anonymous: boolean;
+  dob?: string | null;
+  phoneNumber?: string | null;
+  targetLanguage?: string | null;
+  nativeLanguage?: string | null;
+  dailyGoal?: string | null;
+  qualifications?: string | null;
+  teachingLanguages?: string | null;
 };
 
 export type AuthResponse = {
@@ -294,7 +301,22 @@ export const api = {
         Authorization: `Bearer ${token}`
       }
     }),
-  updateProfile: (token: string, payload: { email: string; displayName: string }) =>
+  updateProfile: (
+    token: string,
+    payload: {
+      email: string;
+      displayName: string;
+      dob?: string | null;
+      phoneNumber?: string | null;
+      targetLanguage?: string | null;
+      nativeLanguage?: string | null;
+      dailyGoal?: string | null;
+      qualifications?: string | null;
+      teachingLanguages?: string | null;
+      currentPassword?: string | null;
+      newPassword?: string | null;
+    }
+  ) =>
     request<AuthUser>("/api/auth/me", {
       method: "PUT",
       headers: {

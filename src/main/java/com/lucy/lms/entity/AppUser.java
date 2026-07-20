@@ -19,6 +19,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,6 +69,30 @@ public class AppUser {
 
     @Column
     private Instant lastLoginAt;
+
+    // ── Common optional fields ──────────────────────────────────────────
+    @Column
+    private LocalDate dob;
+
+    @Column(length = 20)
+    private String phoneNumber;
+
+    // ── Learner (LUCY) specific fields ──────────────────────────────────
+    @Column(length = 60)
+    private String targetLanguage;
+
+    @Column(length = 60)
+    private String nativeLanguage;
+
+    @Column(length = 60)
+    private String dailyGoal;
+
+    // ── Mentor (LUCY_PRO) specific fields ───────────────────────────────
+    @Column(columnDefinition = "TEXT")
+    private String qualifications;
+
+    @Column(length = 255)
+    private String teachingLanguages;
 
     @JsonIgnore
     @ToString.Exclude

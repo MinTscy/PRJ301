@@ -81,8 +81,22 @@ export function ProfilePanel() {
   const [walletError, setWalletError] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
+  // Base draft fields
   const [draftDisplayName, setDraftDisplayName] = useState("");
   const [draftEmail, setDraftEmail] = useState("");
+  const [draftDob, setDraftDob] = useState("");
+  const [draftPhone, setDraftPhone] = useState("");
+  // Learner draft fields
+  const [draftTargetLang, setDraftTargetLang] = useState("");
+  const [draftNativeLang, setDraftNativeLang] = useState("");
+  const [draftDailyGoal, setDraftDailyGoal] = useState("");
+  // Mentor draft fields
+  const [draftQualifications, setDraftQualifications] = useState("");
+  const [draftTeachingLangs, setDraftTeachingLangs] = useState("");
+  // Password change draft fields
+  const [draftCurrentPw, setDraftCurrentPw] = useState("");
+  const [draftNewPw, setDraftNewPw] = useState("");
+  const [draftConfirmPw, setDraftConfirmPw] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -128,13 +142,22 @@ export function ProfilePanel() {
     if (token) await api.logout(token).catch(() => undefined);
     clearAuthSession();
     router.replace("/auth");
-    router.refresh();
   }
 
   function startEditingProfile() {
     if (!user) return;
     setDraftDisplayName(user.displayName);
     setDraftEmail(user.email);
+    setDraftDob(user.dob ?? "");
+    setDraftPhone(user.phoneNumber ?? "");
+    setDraftTargetLang(user.targetLanguage ?? "");
+    setDraftNativeLang(user.nativeLanguage ?? "");
+    setDraftDailyGoal(user.dailyGoal ?? "");
+    setDraftQualifications(user.qualifications ?? "");
+    setDraftTeachingLangs(user.teachingLanguages ?? "");
+    setDraftCurrentPw("");
+    setDraftNewPw("");
+    setDraftConfirmPw("");
     setProfileMessage(null);
     setProfileError(null);
     setEditingProfile(true);
@@ -155,10 +178,30 @@ export function ProfilePanel() {
       setProfileError("Display name and email are required.");
       return;
     }
+    if (draftNewPw && draftNewPw !== draftConfirmPw) {
+      setProfileError("New password and confirm password do not match.");
+      return;
+    }
+    if (draftNewPw && draftNewPw.length < 8) {
+      setProfileError("New password must be at least 8 characters.");
+      return;
+    }
 
     setProfileSaving(true);
     try {
-      const updatedUser = await api.updateProfile(token, { displayName, email });
+      const updatedUser = await api.updateProfile(token, {
+        displayName,
+        email,
+        dob: draftDob || null,
+        phoneNumber: draftPhone || null,
+        targetLanguage: draftTargetLang || null,
+        nativeLanguage: draftNativeLang || null,
+        dailyGoal: draftDailyGoal || null,
+        qualifications: draftQualifications || null,
+        teachingLanguages: draftTeachingLangs || null,
+        currentPassword: draftCurrentPw || null,
+        newPassword: draftNewPw || null,
+      });
       setUser(updatedUser);
       updateStoredUser(updatedUser);
       setEditingProfile(false);
@@ -257,6 +300,62 @@ export function ProfilePanel() {
               </div>
             </div>
 
+            {/* ── View-mode extra info ──────────────────────────────────── */}
+            {!editingProfile && (user.dob || user.phoneNumber || user.targetLanguage || user.nativeLanguage || user.dailyGoal || user.qualifications || user.teachingLanguages) && (
+              <div className="mt-5 grid gap-3 border-t border-white/10 pt-5">
+                {/* Common fields */}
+                {(user.dob || user.phoneNumber) && (
+                  <div className="grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground">
+                    {user.dob && (
+                      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                        <span className="text-primary">📅</span>
+                        <span>{new Date(user.dob).toLocaleDateString("vi-VN")}</span>
+                      </div>
+                    )}
+                    {user.phoneNumber && (
+                      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                        <span className="text-primary">📞</span>
+                        <span>{user.phoneNumber}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Learner fields */}
+                {user.role === "LUCY" && (user.targetLanguage || user.nativeLanguage || user.dailyGoal) && (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm">
+                    <p className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Learning Preferences</p>
+                    <div className="grid gap-1 text-muted-foreground sm:grid-cols-3">
+                      {user.targetLanguage && (
+                        <div><span className="text-white font-bold">Target: </span>{user.targetLanguage}</div>
+                      )}
+                      {user.nativeLanguage && (
+                        <div><span className="text-white font-bold">Native: </span>{user.nativeLanguage}</div>
+                      )}
+                      {user.dailyGoal && (
+                        <div><span className="text-white font-bold">Daily Goal: </span>{user.dailyGoal}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Mentor fields */}
+                {user.role === "LUCY_PRO" && (user.teachingLanguages || user.qualifications) && (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm">
+                    <p className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Teaching Info</p>
+                    <div className="grid gap-1 text-muted-foreground">
+                      {user.teachingLanguages && (
+                        <div><span className="text-white font-bold">Languages: </span>{user.teachingLanguages}</div>
+                      )}
+                      {user.qualifications && (
+                        <div className="mt-1 whitespace-pre-line"><span className="text-white font-bold">Qualifications: </span>{user.qualifications}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {editingProfile ? (
               <form
                 className="mt-6 grid gap-4 border-t border-white/10 pt-6"
@@ -265,26 +364,88 @@ export function ProfilePanel() {
                   void saveProfile();
                 }}
               >
+                {/* Base fields */}
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Basic Info</p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-bold text-white">
                     Display name
-                    <Input
-                      autoFocus
-                      maxLength={120}
-                      value={draftDisplayName}
-                      onChange={(event) => setDraftDisplayName(event.target.value)}
-                    />
+                    <Input autoFocus maxLength={120} value={draftDisplayName} onChange={(e) => setDraftDisplayName(e.target.value)} />
                   </label>
                   <label className="grid gap-2 text-sm font-bold text-white">
                     Email
-                    <Input
-                      type="email"
-                      maxLength={180}
-                      value={draftEmail}
-                      onChange={(event) => setDraftEmail(event.target.value)}
-                    />
+                    <Input type="email" maxLength={180} value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-white">
+                    Date of birth
+                    <Input type="date" value={draftDob} onChange={(e) => setDraftDob(e.target.value)} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-white">
+                    Phone number
+                    <Input type="tel" maxLength={20} placeholder="+84 xxx xxx xxx" value={draftPhone} onChange={(e) => setDraftPhone(e.target.value)} />
                   </label>
                 </div>
+
+                {/* Learner-specific fields */}
+                {user.role === "LUCY" && (
+                  <>
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Learning Preferences</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="grid gap-2 text-sm font-bold text-white">
+                        Target Language
+                        <Input maxLength={60} placeholder="e.g. English, Japanese" value={draftTargetLang} onChange={(e) => setDraftTargetLang(e.target.value)} />
+                      </label>
+                      <label className="grid gap-2 text-sm font-bold text-white">
+                        Native Language
+                        <Input maxLength={60} placeholder="e.g. Vietnamese" value={draftNativeLang} onChange={(e) => setDraftNativeLang(e.target.value)} />
+                      </label>
+                      <label className="grid gap-2 text-sm font-bold text-white sm:col-span-2">
+                        Daily Learning Goal
+                        <Input maxLength={60} placeholder="e.g. 30 minutes/day" value={draftDailyGoal} onChange={(e) => setDraftDailyGoal(e.target.value)} />
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {/* Mentor-specific fields */}
+                {user.role === "LUCY_PRO" && (
+                  <>
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Teaching Info</p>
+                    <div className="grid gap-4">
+                      <label className="grid gap-2 text-sm font-bold text-white">
+                        Teaching Languages
+                        <Input maxLength={255} placeholder="e.g. English, French, Spanish" value={draftTeachingLangs} onChange={(e) => setDraftTeachingLangs(e.target.value)} />
+                      </label>
+                      <label className="grid gap-2 text-sm font-bold text-white">
+                        Qualifications &amp; Certifications
+                        <textarea
+                          className="min-h-24 w-full resize-y rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="e.g. TEFL Certified, MA in Linguistics..."
+                          maxLength={1000}
+                          value={draftQualifications}
+                          onChange={(e) => setDraftQualifications(e.target.value)}
+                        />
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {/* Password change — all roles */}
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Change Password</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-bold text-white sm:col-span-2">
+                    Current password
+                    <Input type="password" placeholder="Leave blank to keep current password" value={draftCurrentPw} onChange={(e) => setDraftCurrentPw(e.target.value)} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-white">
+                    New password
+                    <Input type="password" placeholder="Min 8 characters" value={draftNewPw} onChange={(e) => setDraftNewPw(e.target.value)} />
+                  </label>
+                  <label className="grid gap-2 text-sm font-bold text-white">
+                    Confirm new password
+                    <Input type="password" placeholder="Repeat new password" value={draftConfirmPw} onChange={(e) => setDraftConfirmPw(e.target.value)} />
+                  </label>
+                </div>
+
                 {profileError ? (
                   <div className="rounded-2xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300">
                     {profileError}
@@ -294,15 +455,7 @@ export function ProfilePanel() {
                   <Button type="submit" disabled={profileSaving}>
                     <Save className="size-4" /> {profileSaving ? "Saving..." : "Save changes"}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={profileSaving}
-                    onClick={() => {
-                      setEditingProfile(false);
-                      setProfileError(null);
-                    }}
-                  >
+                  <Button type="button" variant="ghost" disabled={profileSaving} onClick={() => { setEditingProfile(false); setProfileError(null); }}>
                     <X className="size-4" /> Cancel
                   </Button>
                 </div>

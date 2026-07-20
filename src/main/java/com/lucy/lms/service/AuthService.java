@@ -90,8 +90,32 @@ public class AuthService {
                     throw new BadRequestException("Email is already registered");
                 });
 
+        // Password change
+        if (request.newPassword() != null && !request.newPassword().isBlank()) {
+            if (request.currentPassword() == null || request.currentPassword().isBlank()) {
+                throw new BadRequestException("Current password is required to set a new password");
+            }
+            if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+                throw new BadRequestException("Current password is incorrect");
+            }
+            user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        }
+
+        // Base fields
         user.setEmail(email);
         user.setDisplayName(request.displayName().trim());
+        user.setDob(request.dob());
+        user.setPhoneNumber(request.phoneNumber());
+
+        // Learner fields
+        user.setTargetLanguage(request.targetLanguage());
+        user.setNativeLanguage(request.nativeLanguage());
+        user.setDailyGoal(request.dailyGoal());
+
+        // Mentor fields
+        user.setQualifications(request.qualifications());
+        user.setTeachingLanguages(request.teachingLanguages());
+
         user.setUpdatedAt(Instant.now());
         return toUserDTO(user);
     }
@@ -134,7 +158,14 @@ public class AuthService {
                 user.getDisplayName(),
                 user.getRole(),
                 user.getPersonaId(),
-                Boolean.TRUE.equals(user.getAnonymous())
+                Boolean.TRUE.equals(user.getAnonymous()),
+                user.getDob(),
+                user.getPhoneNumber(),
+                user.getTargetLanguage(),
+                user.getNativeLanguage(),
+                user.getDailyGoal(),
+                user.getQualifications(),
+                user.getTeachingLanguages()
         );
     }
 
