@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import type { AuthUser, PodcastRecording } from "./types.js";
@@ -91,6 +91,25 @@ export class RecordingStore {
     return this.recordings
       .filter((item) => item.status === "READY" && (!roomCode || item.roomCode === roomCode))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  delete(id: string): PodcastRecording {
+    const recording = this.recordings.find((item) => item.id === id);
+    if (!recording) throw new Error("Recording not found.");
+
+    if (recording.audioUrl && recording.audioUrl.startsWith("/recordings/")) {
+      const fileName = recording.audioUrl.replace("/recordings/", "");
+      const filePath = join(this.directory, fileName);
+      if (existsSync(filePath)) {
+        try {
+          unlinkSync(filePath);
+        } catch {}
+      }
+    }
+
+    this.recordings = this.recordings.filter((item) => item.id !== id);
+    this.persist();
+    return recording;
   }
 
   private requireOwnedRecording(id: string, creatorPersonaId: string): PodcastRecording {

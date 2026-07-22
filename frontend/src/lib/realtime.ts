@@ -141,5 +141,20 @@ export const realtimeApi = {
     }
 
     return response.json() as Promise<PodcastRecording>;
+  },
+  deletePodcast: async (token: string, id: string) => {
+    const response = await fetch(`${REALTIME_BASE_URL}/api/realtime/podcasts/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(payload?.message ?? `Unable to delete podcast: ${response.status}`);
+    }
+
+    return response.json() as Promise<PodcastRecording>;
   }
 };

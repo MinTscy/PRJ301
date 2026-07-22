@@ -138,7 +138,7 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
 
   app.post("/api/realtime/recordings", async (request, response, next) => {
     try {
-      const user = await requireUser(request, javaClient, ["LUCY_SUPER"]);
+      const user = await requireUser(request, javaClient, ["LUCY_PRO", "LUCY_SUPER"]);
       const payload = recordingStartSchema.parse(request.body);
       const room = await javaClient.getRoom(payload.roomCode);
       response.status(201).json(recordings.start(room.roomCode, payload.title, user));
@@ -152,7 +152,7 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
     express.raw({ type: ["audio/*", "application/octet-stream"], limit: "100mb" }),
     async (request, response, next) => {
       try {
-        const user = await requireUser(request, javaClient, ["LUCY_SUPER"]);
+        const user = await requireUser(request, javaClient, ["LUCY_PRO", "LUCY_SUPER"]);
         const duration = request.query.durationSeconds ? Number(request.query.durationSeconds) : null;
         if (duration !== null && (!Number.isInteger(duration) || duration <= 0 || duration > 86400)) {
           throw new Error("durationSeconds must be a positive integer up to 86400.");
@@ -172,10 +172,19 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
 
   app.post("/api/realtime/recordings/:id/complete", async (request, response, next) => {
     try {
-      const user = await requireUser(request, javaClient, ["LUCY_SUPER"]);
+      const user = await requireUser(request, javaClient, ["LUCY_PRO", "LUCY_SUPER"]);
       const payload = recordingCompleteSchema.parse(request.body);
       response.json(recordings.completeExternal(
         request.params.id, user.personaId, payload.audioUrl, payload.durationSeconds));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/realtime/podcasts/:id", async (request, response, next) => {
+    try {
+      await requireUser(request, javaClient, ["LUCY_SUPER"]);
+      response.json(recordings.delete(request.params.id));
     } catch (error) {
       next(error);
     }

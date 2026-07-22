@@ -90,4 +90,10 @@ public class LiveRoomController {
     public void unpinMaterial(@PathVariable String roomCode, @PathVariable Long materialId) {
         liveRoomService.unpinMaterial(roomCode, materialId);
     }
+
+    @PostMapping("/{roomCode}/close")
+    @Operation(summary = "Close a live room and update status to CLOSED")
+    public LiveRoomDTO closeRoom(@PathVariable String roomCode) {
+        return liveRoomService.closeRoom(roomCode);
+    }
 }

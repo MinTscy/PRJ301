@@ -132,6 +132,14 @@ public class LiveRoomService {
         pinnedMaterialRepository.delete(material);
     }
 
+    @Transactional
+    public LiveRoomDTO closeRoom(String roomCode) {
+        LiveRoom room = getRoomByCode(roomCode);
+        room.setStatus("CLOSED");
+        liveRoomRepository.save(room);
+        return toLiveRoomDTO(room);
+    }
+
     private LiveRoom getRoomByCode(String roomCode) {
         String normalizedRoomCode = roomCode.trim().toUpperCase(Locale.ROOT);
         return liveRoomRepository.findByRoomCode(normalizedRoomCode)

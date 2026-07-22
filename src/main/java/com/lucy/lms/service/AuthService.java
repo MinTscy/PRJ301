@@ -2,14 +2,21 @@ package com.lucy.lms.service;
 
 import com.lucy.lms.dto.AuthResponseDTO;
 import com.lucy.lms.dto.AuthUserDTO;
+import com.lucy.lms.dto.ConfirmEmailChangeDTO;
+import com.lucy.lms.dto.EmailChangeResponseDTO;
 import com.lucy.lms.dto.LoginRequestDTO;
 import com.lucy.lms.dto.RegisterRequestDTO;
+import com.lucy.lms.dto.RequestEmailChangeDTO;
 import com.lucy.lms.dto.UpdateProfileRequestDTO;
+import com.lucy.lms.entity.AccountRole;
 import com.lucy.lms.entity.AppUser;
 import com.lucy.lms.entity.AuthSession;
+import com.lucy.lms.entity.EmailChangeToken;
 import com.lucy.lms.repository.AppUserRepository;
 import com.lucy.lms.repository.AuthSessionRepository;
+import com.lucy.lms.repository.EmailChangeTokenRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,15 +30,18 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Locale;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private static final Duration ACCESS_TOKEN_TTL = Duration.ofHours(8);
+    private static final Duration EMAIL_CHANGE_TOKEN_TTL = Duration.ofMinutes(15);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final AppUserRepository appUserRepository;
     private final AuthSessionRepository authSessionRepository;
+    private final EmailChangeTokenRepository emailChangeTokenRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -82,13 +92,10 @@ public class AuthService {
     @Transactional
     public AuthUserDTO updateProfile(String authorizationHeader, UpdateProfileRequestDTO request) {
         AppUser user = resolveSession(authorizationHeader).getUser();
-        String email = normalizeEmail(request.email());
 
-        appUserRepository.findByEmail(email)
-                .filter(existingUser -> !existingUser.getId().equals(user.getId()))
-                .ifPresent(existingUser -> {
-                    throw new BadRequestException("Email is already registered");
-                });
+        if (request.email() != null && !normalizeEmail(request.email()).equalsIgnoreCase(user.getEmail())) {
+            throw new BadRequestException("Email is a locked primary field and cannot be updated directly in profile. Please request an email change verification code.");
+        }
 
         // Password change
         if (request.newPassword() != null && !request.newPassword().isBlank()) {
@@ -101,8 +108,7 @@ public class AuthService {
             user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         }
 
-        // Base fields
-        user.setEmail(email);
+        // Base fields (email remains locked to current user email)
         user.setDisplayName(request.displayName().trim());
         user.setDob(request.dob());
         user.setPhoneNumber(request.phoneNumber());
@@ -117,6 +123,76 @@ public class AuthService {
         user.setTeachingLanguages(request.teachingLanguages());
 
         user.setUpdatedAt(Instant.now());
+        return toUserDTO(user);
+    }
+
+    @Transactional
+    public EmailChangeResponseDTO requestEmailChange(String authorizationHeader, RequestEmailChangeDTO request) {
+        AppUser user = resolveSession(authorizationHeader).getUser();
+        String newEmail = normalizeEmail(request.newEmail());
+
+        if (newEmail.equalsIgnoreCase(user.getEmail())) {
+            throw new BadRequestException("Email mới không được trùng với Email hiện tại");
+        }
+
+        if (appUserRepository.existsByEmail(newEmail)) {
+            throw new BadRequestException("Email này đã được sử dụng bởi tài khoản khác");
+        }
+
+        if (request.currentPassword() != null && !request.currentPassword().isBlank()) {
+            if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+                throw new BadRequestException("Mật khẩu hiện tại không chính xác");
+            }
+        }
+
+        emailChangeTokenRepository.deleteByUser(user);
+
+        String oldCode = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+        String newCode = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+        Instant now = Instant.now();
+        EmailChangeToken token = EmailChangeToken.builder()
+                .user(user)
+                .newEmail(newEmail)
+                .oldEmailVerificationCode(oldCode)
+                .newEmailVerificationCode(newCode)
+                .createdAt(now)
+                .expiresAt(now.plus(EMAIL_CHANGE_TOKEN_TTL))
+                .build();
+
+        emailChangeTokenRepository.save(token);
+        log.info("DISPATCHING VERIFICATION CODES - Old Email ({}) code: [{}], New Email ({}) code: [{}]", user.getEmail(), oldCode, newEmail, newCode);
+
+        return new EmailChangeResponseDTO(
+                "Mã xác nhận đã được gửi đến cả Email hiện tại và Email mới.",
+                newEmail
+        );
+    }
+
+    @Transactional
+    public AuthUserDTO confirmEmailChange(String authorizationHeader, ConfirmEmailChangeDTO request) {
+        AppUser user = resolveSession(authorizationHeader).getUser();
+        String newEmail = normalizeEmail(request.newEmail());
+        String oldCode = request.oldEmailCode() != null ? request.oldEmailCode().trim() : "";
+        String newCode = request.newEmailCode() != null ? request.newEmailCode().trim() : "";
+
+        Instant now = Instant.now();
+        EmailChangeToken token = emailChangeTokenRepository
+                .findTopByUserAndNewEmailAndOldEmailVerificationCodeAndNewEmailVerificationCodeAndExpiresAtAfter(
+                        user, newEmail, oldCode, newCode, now
+                )
+                .orElseThrow(() -> new BadRequestException("Mã xác nhận Email cũ hoặc Email mới không chính xác hoặc đã hết hạn"));
+
+        if (appUserRepository.existsByEmail(newEmail)) {
+            throw new BadRequestException("Email này đã được đăng ký bởi tài khoản khác");
+        }
+
+        user.setEmail(newEmail);
+        user.setUpdatedAt(now);
+        appUserRepository.save(user);
+
+        emailChangeTokenRepository.deleteByUser(user);
+        log.info("Email updated successfully for user ID {}: new email is {}", user.getId(), newEmail);
+
         return toUserDTO(user);
     }
 
@@ -167,6 +243,84 @@ public class AuthService {
                 user.getQualifications(),
                 user.getTeachingLanguages()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<AuthUserDTO> listAllUsers(String authorizationHeader) {
+        AppUser requester = resolveSession(authorizationHeader).getUser();
+        if (requester.getRole() != AccountRole.LUCY_SUPER) {
+            throw new UnauthorizedException("Only LUCY_SUPER admin accounts can view user list");
+        }
+        return appUserRepository.findAll().stream()
+                .map(this::toUserDTO)
+                .toList();
+    }
+
+    @Transactional
+    public AuthUserDTO updateUserRole(String authorizationHeader, Long userId, AccountRole newRole) {
+        AppUser requester = resolveSession(authorizationHeader).getUser();
+        if (requester.getRole() != AccountRole.LUCY_SUPER) {
+            throw new UnauthorizedException("Only LUCY_SUPER admin accounts can update user roles");
+        }
+        AppUser targetUser = appUserRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found with id: " + userId));
+        targetUser.setRole(newRole);
+        targetUser.setAnonymous(newRole == AccountRole.LUCY);
+        targetUser.setUpdatedAt(Instant.now());
+        appUserRepository.save(targetUser);
+        return toUserDTO(targetUser);
+    }
+
+    @Transactional
+    public void deleteUser(String authorizationHeader, Long userId) {
+        AppUser requester = resolveSession(authorizationHeader).getUser();
+        if (requester.getRole() != AccountRole.LUCY_SUPER) {
+            throw new UnauthorizedException("Only LUCY_SUPER admin accounts can delete users");
+        }
+        if (requester.getId().equals(userId)) {
+            throw new BadRequestException("You cannot delete your own admin account");
+        }
+        AppUser targetUser = appUserRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found with id: " + userId));
+
+        authSessionRepository.deleteByUser(targetUser);
+        appUserRepository.delete(targetUser);
+    }
+
+    @Transactional
+    public AuthUserDTO toggleUserStatus(String authorizationHeader, Long userId, boolean enabled) {
+        AppUser requester = resolveSession(authorizationHeader).getUser();
+        if (requester.getRole() != AccountRole.LUCY_SUPER) {
+            throw new UnauthorizedException("Only LUCY_SUPER admin accounts can lock/unlock users");
+        }
+        if (requester.getId().equals(userId)) {
+            throw new BadRequestException("You cannot lock your own admin account");
+        }
+        AppUser targetUser = appUserRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found with id: " + userId));
+
+        targetUser.setEnabled(enabled);
+        targetUser.setUpdatedAt(Instant.now());
+        appUserRepository.save(targetUser);
+        return toUserDTO(targetUser);
+    }
+
+    @Transactional
+    public AuthUserDTO resetUserPassword(String authorizationHeader, Long userId, String newPassword) {
+        AppUser requester = resolveSession(authorizationHeader).getUser();
+        if (requester.getRole() != AccountRole.LUCY_SUPER) {
+            throw new UnauthorizedException("Only LUCY_SUPER admin accounts can reset user passwords");
+        }
+        if (newPassword == null || newPassword.isBlank() || newPassword.length() < 6) {
+            throw new BadRequestException("New password must be at least 6 characters");
+        }
+        AppUser targetUser = appUserRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found with id: " + userId));
+
+        targetUser.setPasswordHash(passwordEncoder.encode(newPassword));
+        targetUser.setUpdatedAt(Instant.now());
+        appUserRepository.save(targetUser);
+        return toUserDTO(targetUser);
     }
 
     private String normalizeEmail(String email) {

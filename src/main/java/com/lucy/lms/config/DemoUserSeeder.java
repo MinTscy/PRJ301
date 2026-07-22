@@ -18,7 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DemoUserSeeder implements ApplicationRunner {
 
-    private static final String DEFAULT_PASSWORD = "ChangeMe123!";
+    private static final String DEFAULT_PASSWORD = "12345678";
 
     private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
@@ -35,7 +35,7 @@ public class DemoUserSeeder implements ApplicationRunner {
 
         Instant now = Instant.now();
         for (SeedUser seedUser : seedUsers()) {
-            if (appUserRepository.existsByEmail(seedUser.email())) {
+            if (appUserRepository.existsByEmail(seedUser.email()) || appUserRepository.existsByPersonaId(seedUser.personaId())) {
                 continue;
             }
 

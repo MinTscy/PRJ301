@@ -296,7 +296,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const canModerate =
     currentParticipant?.accountRole === "LUCY_PRO" || currentParticipant?.accountRole === "LUCY_SUPER";
   const canCreateRoom = authUser?.role === "LUCY_PRO" || authUser?.role === "LUCY_SUPER";
-  const canRecordPodcast = authUser?.role === "LUCY_SUPER";
+  const canRecordPodcast = authUser?.role === "LUCY_PRO" || authUser?.role === "LUCY_SUPER";
   const isLearner = authUser?.role === "LUCY";
   const activeRoomIdentity =
     currentParticipant?.displayName ?? (learnerAnonymous ? "Anonymous Learner" : authUser?.displayName ?? "Learner");
@@ -461,7 +461,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   async function startSuperRecording() {
     const token = accessToken ?? window.localStorage.getItem("lucy.accessToken") ?? undefined;
     if (!room || !token || !canRecordPodcast) {
-      setError("Only a signed-in Super account can record a room podcast.");
+      setError("Only a signed-in Pro or Super account can record a room podcast.");
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {

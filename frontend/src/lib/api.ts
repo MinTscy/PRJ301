@@ -134,6 +134,7 @@ export type AuthUser = {
   role: AccountRole;
   personaId: string;
   anonymous: boolean;
+  enabled?: boolean;
   dob?: string | null;
   phoneNumber?: string | null;
   targetLanguage?: string | null;
@@ -203,6 +204,17 @@ export type PodcastRecording = {
   durationSeconds: number | null;
   createdAt: string;
   completedAt: string | null;
+};
+
+export type SystemAnalytics = {
+  totalUsers: number;
+  totalLearners: number;
+  totalMentors: number;
+  totalSupers: number;
+  totalLanguages: number;
+  totalStages: number;
+  totalLevels: number;
+  activeRoomsCount: number;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -352,6 +364,71 @@ export const api = {
   logout: (token: string) =>
     request<void>("/api/auth/logout", {
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }),
+  requestEmailChange: (
+    token: string,
+    payload: { newEmail: string; currentPassword?: string }
+  ) =>
+    request<{ message: string; newEmail: string }>(
+      "/api/auth/email-change/request",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      }
+    ),
+  confirmEmailChange: (
+    token: string,
+    payload: { newEmail: string; oldEmailCode: string; newEmailCode: string }
+  ) =>
+    request<AuthUser>("/api/auth/email-change/confirm", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    }),
+  listUsers: (token: string) =>
+    request<AuthUser[]>("/api/auth/admin/users", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }),
+  updateUserRole: (token: string, userId: number, role: AccountRole) =>
+    request<AuthUser>(`/api/auth/admin/users/${userId}/role?role=${role}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }),
+  deleteUser: (token: string, userId: number) =>
+    request<void>(`/api/auth/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }),
+  toggleUserStatus: (token: string, userId: number, enabled: boolean) =>
+    request<AuthUser>(`/api/auth/admin/users/${userId}/status?enabled=${enabled}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }),
+  resetUserPassword: (token: string, userId: number, newPassword?: string) =>
+    request<AuthUser>(`/api/auth/admin/users/${userId}/reset-password?newPassword=${encodeURIComponent(newPassword || "12345678")}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }),
+  getAnalytics: (token: string) =>
+    request<SystemAnalytics>("/api/admin/analytics", {
       headers: {
         Authorization: `Bearer ${token}`
       }
