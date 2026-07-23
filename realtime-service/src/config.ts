@@ -10,6 +10,7 @@ const environmentSchema = z.object({
   AGORA_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
   STAGE_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).default(5000),
   TOPIC_DURATION_MINUTES: z.coerce.number().int().min(1).default(10),
+  LEARNER_LEVEL_UP_MINUTES: z.coerce.number().int().min(1).default(10),
   RECORDINGS_DIR: z.string().default("./data/recordings"),
   INTERNAL_SERVICE_SECRET: z.string().min(12).default("lucy-local-internal-secret")
 });
@@ -25,6 +26,7 @@ export const config = {
   agoraTokenTtlSeconds: parsed.AGORA_TOKEN_TTL_SECONDS,
   stagePollIntervalMs: parsed.STAGE_POLL_INTERVAL_MS,
   topicDurationMinutes: parsed.TOPIC_DURATION_MINUTES,
+  learnerLevelUpMinutes: parsed.LEARNER_LEVEL_UP_MINUTES,
   recordingsDir: parsed.RECORDINGS_DIR,
   internalServiceSecret: parsed.INTERNAL_SERVICE_SECRET
 };

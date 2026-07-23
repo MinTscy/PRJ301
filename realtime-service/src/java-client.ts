@@ -19,6 +19,21 @@ export class JavaLmsClient {
     });
   }
 
+  advanceLearnerLevel(
+    personaId: string,
+    payload: { languageCode: string; completedLevelNumber: number; minutesInRoom: number },
+    internalServiceSecret: string
+  ): Promise<AuthUser> {
+    return this.request<AuthUser>(`/api/auth/internal/personas/${encodeURIComponent(personaId)}/learner-level-progress`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-LUCY-INTERNAL-SECRET": internalServiceSecret
+      },
+      body: JSON.stringify(payload)
+    });
+  }
+
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...init,

@@ -5,6 +5,9 @@ export type AuthUser = {
   id: number;
   email: string;
   displayName: string;
+  learnerEnglishLevel: number | null;
+  learnerJapaneseLevel: number | null;
+  learnerChineseLevel: number | null;
   role: AccountRole;
   personaId: string;
   anonymous: boolean;
@@ -59,12 +62,33 @@ export type ParticipantState = {
   joinedAt: string;
 };
 
+export type RecordingConsentDecision = "APPROVED" | "REJECTED";
+
+export type RecordingConsentResponse = {
+  personaId: string;
+  displayName: string;
+  decision: RecordingConsentDecision;
+  respondedAt: string;
+};
+
+export type RecordingConsentState = {
+  id: string;
+  roomCode: string;
+  creatorPersonaId: string;
+  creatorDisplayName: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  requestedAt: string;
+  requiredParticipantPersonaIds: string[];
+  responses: RecordingConsentResponse[];
+};
+
 export type RealtimeRoomState = {
   roomCode: string;
   participants: ParticipantState[];
   currentStep: TimelineStep | null;
   nextStep: TimelineStep | null;
   completed: boolean;
+  recordingConsent: RecordingConsentState | null;
 };
 
 export type PodcastRecording = {

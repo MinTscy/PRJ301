@@ -22,6 +22,14 @@ const roles: Array<{ value: AccountRole; label: string; helper: string }> = [
   { value: "LUCY_SUPER", label: "Super", helper: "Premium content workflow" }
 ];
 
+const learnerLanguages = [
+  { code: "EN", label: "English", field: "learnerEnglishLevel" },
+  { code: "JA", label: "Japanese", field: "learnerJapaneseLevel" },
+  { code: "ZH", label: "Chinese", field: "learnerChineseLevel" }
+] as const;
+
+const learnerLevelOptions = Array.from({ length: 100 }, (_, index) => index + 1);
+
 async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
@@ -50,6 +58,9 @@ export function AuthPanel() {
   const [password, setPassword] = useState("ChangeMe123!");
   const [displayName, setDisplayName] = useState("LUCY Mentor");
   const [role, setRole] = useState<AccountRole>("LUCY_PRO");
+  const [learnerEnglishLevel, setLearnerEnglishLevel] = useState(1);
+  const [learnerJapaneseLevel, setLearnerJapaneseLevel] = useState(1);
+  const [learnerChineseLevel, setLearnerChineseLevel] = useState(1);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -80,7 +91,15 @@ export function AuthPanel() {
         mode === "register"
           ? await authRequest<AuthResponse>("/api/auth/register", {
               method: "POST",
-              body: JSON.stringify({ email, password, displayName, role })
+              body: JSON.stringify({
+                email,
+                password,
+                displayName,
+                role,
+                ...(role === "LUCY"
+                  ? { learnerEnglishLevel, learnerJapaneseLevel, learnerChineseLevel }
+                  : {})
+              })
             })
           : await authRequest<AuthResponse>("/api/auth/login", {
               method: "POST",
@@ -178,23 +197,65 @@ export function AuthPanel() {
             </label>
 
             {mode === "register" ? (
-              <div className="grid gap-3 md:grid-cols-3">
-                {roles.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => setRole(item.value)}
-                    className={`rounded-2xl border p-4 text-left transition-all ${
-                      role === item.value
-                        ? "border-primary/45 bg-primary/15 ring-4 ring-primary/10"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/20"
-                    }`}
-                  >
-                    <div className="font-black text-white">{item.label}</div>
-                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{item.helper}</p>
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {roles.map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setRole(item.value)}
+                      className={`rounded-2xl border p-4 text-left transition-all ${
+                        role === item.value
+                          ? "border-primary/45 bg-primary/15 ring-4 ring-primary/10"
+                          : "border-white/10 bg-white/[0.03] hover:border-white/20"
+                      }`}
+                    >
+                      <div className="font-black text-white">{item.label}</div>
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">{item.helper}</p>
+                    </button>
+                  ))}
+                </div>
+
+                {role === "LUCY" ? (
+                  <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+                    <div className="font-black text-white">Learner language levels</div>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Choose the starting level for each language. Room access is matched to these levels.
+                    </p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      {learnerLanguages.map((item) => {
+                        const value =
+                          item.code === "EN"
+                            ? learnerEnglishLevel
+                            : item.code === "JA"
+                              ? learnerJapaneseLevel
+                              : learnerChineseLevel;
+                        const setValue =
+                          item.code === "EN"
+                            ? setLearnerEnglishLevel
+                            : item.code === "JA"
+                              ? setLearnerJapaneseLevel
+                              : setLearnerChineseLevel;
+
+                        return (
+                          <label key={item.code} className="grid gap-2 text-sm font-bold text-white">
+                            {item.label}
+                            <select
+                              className="h-11 rounded-xl border border-white/10 bg-[#111827] px-3 text-sm text-white"
+                              value={value}
+                              onChange={(event) => setValue(Number(event.target.value))}
+                            >
+                              {learnerLevelOptions.map((level) => (
+                                <option key={level} value={level}>Level {level}</option>
+                              ))}
+                            </select>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </>
             ) : null}
 
             <Button type="submit" disabled={loading}>

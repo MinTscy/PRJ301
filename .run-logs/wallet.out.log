@@ -1,0 +1,426 @@
+warn: Microsoft.AspNetCore.Hosting.Diagnostics[15]
+      Overriding HTTP_PORTS '5002' and HTTPS_PORTS ''. Binding to values defined by URLS instead 'http://localhost:5002'.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5002
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: E:\LUCY-LMS\wallet-service
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 269.3045ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 275.7403ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 270.5534ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 283.5353ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 330.4191ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 330.4083ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 330.1894ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 330.5021ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 28.597ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 28.9023ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 46.6787ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 46.9438ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 21.6138ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 22.0894ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 23.4562ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 23.7313ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 22.2089ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 22.4067ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 27.5392ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 27.644ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 22.7175ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 24.669ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 20.8075ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 20.9495ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 13.2261ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 13.6329ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 11.8641ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 12.0328ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 12.1365ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 12.6668ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 12.1902ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 12.3118ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 18.4051ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 18.6112ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 20.0041ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 20.1831ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 11.9499ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 12.1573ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 12.2645ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 12.3749ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 17.565ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 24.5505ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 18.3322ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 25.1273ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 16.1962ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 16.4195ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 18.8238ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 19.1723ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 22.0578ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 22.2978ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 17.9689ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 18.1393ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 9.6677ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 9.7745ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 8.2393ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 8.2949ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 20.3234ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 20.4852ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 20.746ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 20.9151ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 11.5791ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 11.7664ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 11.4638ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 11.5146ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 16.1681ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 16.468ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 18.7498ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 18.8893ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 15.8465ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 16.106ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 15.6848ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 15.7396ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 54.3638ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 55.4263ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 50.0951ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 50.2409ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 13.2466ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 13.3387ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 12.4805ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 12.5458ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 14.2388ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 14.5319ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 17.9977ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 18.1013ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 10.6827ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 10.9535ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 11.5865ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 11.6936ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 76.2896ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 77.2523ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 78.1754ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 78.3011ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 16.1243ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 16.3053ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 16.2996ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 16.5583ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 25.5952ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 25.8468ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 27.0552ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 27.1588ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8080/api/auth/me
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 43.1931ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 43.3321ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.ClientHandler[101]
+      Received HTTP response headers after 44.241ms - 200
+info: System.Net.Http.HttpClient.JavaAuthClient.LogicalHandler[101]
+      End processing HTTP request after 44.3167ms - 200

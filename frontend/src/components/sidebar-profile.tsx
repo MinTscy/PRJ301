@@ -44,7 +44,7 @@ export function SidebarProfile() {
 
   return (
     <Link
-      href="/profile"
+      href={user ? `/profile/${user.id}` : "/profile"}
       className="mt-5 flex items-center gap-3 rounded-3xl border border-white/10 bg-white/[0.05] p-3 transition-colors hover:bg-white/[0.08]"
     >
       <div className="grid size-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary to-secondary text-sm font-black text-white">

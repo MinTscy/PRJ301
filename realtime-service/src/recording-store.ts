@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import type { AuthUser, PodcastRecording } from "./types.js";
@@ -93,11 +93,40 @@ export class RecordingStore {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  listOwned(creatorPersonaId: string): PodcastRecording[] {
+    return this.recordings
+      .filter((item) => item.creatorPersonaId === creatorPersonaId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  updateMetadata(id: string, creatorPersonaId: string, title: string): PodcastRecording {
+    const recording = this.requireCreatorRecording(id, creatorPersonaId);
+    const updated: PodcastRecording = {
+      ...recording,
+      title: title.trim()
+    };
+    this.replace(updated);
+    return updated;
+  }
+
+  delete(id: string, creatorPersonaId: string): PodcastRecording {
+    const recording = this.requireCreatorRecording(id, creatorPersonaId);
+    this.recordings = this.recordings.filter((item) => item.id !== id);
+    this.removeLocalAudio(recording.audioUrl);
+    this.persist();
+    return recording;
+  }
+
   private requireOwnedRecording(id: string, creatorPersonaId: string): PodcastRecording {
+    const recording = this.requireCreatorRecording(id, creatorPersonaId);
+    if (recording.status !== "RECORDING") throw new Error("Recording has already been completed.");
+    return recording;
+  }
+
+  private requireCreatorRecording(id: string, creatorPersonaId: string): PodcastRecording {
     const recording = this.recordings.find((item) => item.id === id);
     if (!recording) throw new Error("Recording not found.");
     if (recording.creatorPersonaId !== creatorPersonaId) throw new Error("Recording belongs to another creator.");
-    if (recording.status !== "RECORDING") throw new Error("Recording has already been completed.");
     return recording;
   }
 
@@ -119,6 +148,14 @@ export class RecordingStore {
     const temporary = `${this.metadataPath}.tmp`;
     writeFileSync(temporary, JSON.stringify(this.recordings, null, 2), "utf8");
     renameSync(temporary, this.metadataPath);
+  }
+
+  private removeLocalAudio(audioUrl: string | null) {
+    if (!audioUrl?.startsWith("/recordings/")) return;
+    const fileName = audioUrl.slice("/recordings/".length);
+    if (!fileName || fileName.includes("/") || fileName.includes("\\")) return;
+    const filePath = join(this.directory, fileName);
+    if (existsSync(filePath)) unlinkSync(filePath);
   }
 }
 

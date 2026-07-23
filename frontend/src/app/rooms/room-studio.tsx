@@ -6,6 +6,7 @@ import {
   Activity,
   AlertTriangle,
   Bell,
+  CheckCircle2,
   Clock3,
   ExternalLink,
   Eye,
@@ -38,12 +39,13 @@ import {
 } from "lucide-react";
 import type { AuthUser, GiftCatalogItem, GiftEvent, Language, Level, LiveRoom, PinnedMaterial, PodcastRecording, RoomTimeline } from "@/lib/api";
 import { API_BASE_URL, walletApi } from "@/lib/api";
-import { AUTH_SESSION_EVENT, readStoredUser } from "@/lib/auth-session";
+import { AUTH_SESSION_EVENT, readStoredUser, updateStoredUser } from "@/lib/auth-session";
 import { getCefrBand } from "@/lib/design-system";
 import {
   createRealtimeSocket,
   realtimeApi,
   type RealtimeAck,
+  type RealtimeMaterialsChanged,
   type RealtimeParticipant,
   type RealtimeRoomState
 } from "@/lib/realtime";
@@ -52,11 +54,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import {
+  clearActiveRoomSession,
+  readActiveRoomSession,
+  writeActiveRoomSession
+} from "@/lib/active-room-session";
 
 type RoomStudioProps = {
   languages: Language[];
   initialLevels: Level[];
   initialLanguage: string;
+  initialRoomCode?: string;
 };
 
 const giftIcons: Record<string, typeof Gift> = {
@@ -175,6 +183,24 @@ function recorderMimeType() {
   return "";
 }
 
+function learnerLevelForRoom(user: AuthUser, targetRoom: LiveRoom) {
+  if (targetRoom.languageCode === "JA") return user.learnerJapaneseLevel ?? 1;
+  if (targetRoom.languageCode === "ZH") return user.learnerChineseLevel ?? 1;
+  return user.learnerEnglishLevel ?? 1;
+}
+
+function learnerRoomAccessError(user: AuthUser | null, targetRoom: LiveRoom) {
+  if (user?.role !== "LUCY") return null;
+  const learnerLevel = learnerLevelForRoom(user, targetRoom);
+  const requiredLevel = Math.max(1, targetRoom.levelNumber - 1);
+  if (learnerLevel >= requiredLevel) return null;
+  return `Your ${targetRoom.languageCode} learner level is ${learnerLevel}. This room requires level ${requiredLevel} or higher.`;
+}
+
+function isLearnerLevelAccessError(message: string) {
+  return message.toLowerCase().includes("learner level") && message.toLowerCase().includes("requires level");
+}
+
 function SpeakerTile({
   participant,
   speaking,
@@ -223,7 +249,8 @@ function SpeakerTile({
   );
 }
 
-export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomStudioProps) {
+export function RoomStudio({ languages, initialLevels, initialLanguage, initialRoomCode = "" }: RoomStudioProps) {
+  const requestedRoomCode = initialRoomCode.trim().toUpperCase();
   const [language, setLanguage] = useState(initialLanguage);
   const [stage, setStage] = useState(1);
   const [levels, setLevels] = useState(initialLevels);
@@ -236,7 +263,9 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const [materialUrl, setMaterialUrl] = useState("");
   const [materialDescription, setMaterialDescription] = useState("");
   const [activeMaterialId, setActiveMaterialId] = useState<number | null>(null);
+  const [materialsSyncMessage, setMaterialsSyncMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [roomAccessNotice, setRoomAccessNotice] = useState<{ title: string; message: string } | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
@@ -248,6 +277,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const [roomSearch, setRoomSearch] = useState("");
   const [roomSearchResult, setRoomSearchResult] = useState<LiveRoom | null>(null);
   const [roomSearchLoading, setRoomSearchLoading] = useState(false);
+  const [restoringRoom, setRestoringRoom] = useState(false);
   const [giftCatalog, setGiftCatalog] = useState<GiftCatalogItem[]>([]);
   const [sendingGiftCode, setSendingGiftCode] = useState<string | null>(null);
   const [giftNotice, setGiftNotice] = useState<{ kind: "sent" | "received"; message: string } | null>(null);
@@ -257,6 +287,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
   const [recordingMessage, setRecordingMessage] = useState<string | null>(null);
   const [publishedPodcast, setPublishedPodcast] = useState<PodcastRecording | null>(null);
+  const [recordingConsentAction, setRecordingConsentAction] = useState<"requesting" | "responding" | "cancelling" | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
@@ -290,8 +321,23 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const canModerate =
     currentParticipant?.accountRole === "LUCY_PRO" || currentParticipant?.accountRole === "LUCY_SUPER";
   const canCreateRoom = authUser?.role === "LUCY_PRO" || authUser?.role === "LUCY_SUPER";
-  const canRecordPodcast = authUser?.role === "LUCY_SUPER";
+  const canRecordPodcast = authUser?.role === "LUCY_PRO" || authUser?.role === "LUCY_SUPER";
   const isLearner = authUser?.role === "LUCY";
+  const recordingConsent = realtimeState?.recordingConsent ?? null;
+  const isRecordingCreator = Boolean(
+    recordingConsent && currentParticipant?.personaId === recordingConsent.creatorPersonaId
+  );
+  const currentConsentResponse = recordingConsent?.responses.find(
+    (response) => response.personaId === currentParticipant?.personaId
+  ) ?? null;
+  const recordingConsentApprovedCount =
+    recordingConsent?.responses.filter((response) => response.decision === "APPROVED").length ?? 0;
+  const recordingConsentRequiredCount = recordingConsent?.requiredParticipantPersonaIds.length ?? 0;
+  const recordingConsentReady = Boolean(
+    recordingConsent &&
+    recordingConsent.status === "APPROVED" &&
+    currentParticipant?.personaId === recordingConsent.creatorPersonaId
+  );
   const activeRoomIdentity =
     currentParticipant?.displayName ?? (learnerAnonymous ? "Anonymous Learner" : authUser?.displayName ?? "Learner");
   const defaultRecordingTitle = `${room?.levelTitle ?? selectedLevel?.title ?? "Live room"} recap`;
@@ -317,6 +363,13 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   const uplinkQuality = audio.networkQuality?.uplinkNetworkQuality;
   const downlinkQuality = audio.networkQuality?.downlinkNetworkQuality;
 
+  function showLearnerLevelNotice(message: string) {
+    setRoomAccessNotice({
+      title: "Level requirement not met",
+      message
+    });
+  }
+
   useEffect(() => {
     setAuthUser(readStoredUser());
     setLearnerAnonymous(readLearnerAnonymousPreference());
@@ -333,6 +386,12 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   }, []);
 
   useEffect(() => {
+    if (!roomAccessNotice) return;
+    const timeout = window.setTimeout(() => setRoomAccessNotice(null), 7000);
+    return () => window.clearTimeout(timeout);
+  }, [roomAccessNotice]);
+
+  useEffect(() => {
     async function loadLevels() {
       try {
         const data = await request<Level[]>(`/api/languages/${language}/stages/${stage}/levels`);
@@ -346,6 +405,58 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
 
     loadLevels();
   }, [language, stage]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreActiveRoom() {
+      if (room) return;
+
+      const storedRoom = readActiveRoomSession();
+      const roomCode = requestedRoomCode || storedRoom?.roomCode;
+      if (!roomCode) return;
+
+      setRestoringRoom(true);
+      setError(null);
+      try {
+        const restored = await request<LiveRoom>(`/api/rooms/${encodeURIComponent(roomCode)}`);
+        if (cancelled) return;
+
+        if (restored.status !== "ACTIVE") {
+          clearActiveRoomSession(restored.roomCode);
+          setError("This room is no longer active.");
+          return;
+        }
+
+        const accessError = learnerRoomAccessError(readStoredUser(), restored);
+        if (accessError) {
+          clearActiveRoomSession(restored.roomCode);
+          setError(accessError);
+          showLearnerLevelNotice(accessError);
+          return;
+        }
+
+        setLanguage(restored.languageCode);
+        setStage(restored.stageNumber);
+        setLevelId(restored.levelId);
+        setRoom(restored);
+        writeActiveRoomSession(restored);
+        await refreshRoom(restored.roomCode);
+      } catch {
+        if (!cancelled) {
+          clearActiveRoomSession(roomCode);
+          setError("No active room was found for the saved room session.");
+        }
+      } finally {
+        if (!cancelled) setRestoringRoom(false);
+      }
+    }
+
+    void restoreActiveRoom();
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedRoomCode]);
 
   useEffect(() => {
     if (!room) return;
@@ -377,6 +488,15 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
             setRealtimeState(ack.state);
           } else if (ack.error) {
             setError(ack.error);
+            if (isLearnerLevelAccessError(ack.error)) {
+              showLearnerLevelNotice(ack.error);
+              clearActiveRoomSession(room.roomCode);
+              setRoom(null);
+              setTimeline(null);
+              setMaterials([]);
+              setActiveMaterialId(null);
+              setRealtimeState(null);
+            }
           }
         }
       );
@@ -384,6 +504,27 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
     socket.on("disconnect", () => setRealtimeConnected(false));
     socket.on("room:state", (state: RealtimeRoomState) => setRealtimeState(state));
     socket.on("timeline:updated", (nextTimeline: RoomTimeline) => setTimeline(nextTimeline));
+    socket.on("materials:changed", (event: RealtimeMaterialsChanged) => {
+      if (event.roomCode !== room.roomCode) return;
+      setMaterialsSyncMessage(event.action === "PINNED" ? "Pinned slides synced." : "Pinned slides updated.");
+      void refreshRoom(event.roomCode).catch((err) => {
+        setError(err instanceof Error ? err.message : "Unable to sync pinned materials.");
+      });
+    });
+    socket.on("learner:level-updated", (event: {
+      roomCode: string;
+      languageCode: string;
+      completedLevelNumber: number;
+      user: AuthUser;
+    }) => {
+      if (event.roomCode !== room.roomCode) return;
+      setAuthUser(event.user);
+      updateStoredUser(event.user);
+      setGiftNotice({
+        kind: "received",
+        message: `${event.languageCode} level increased after completing ${event.completedLevelNumber}.`
+      });
+    });
     socket.on("stage:changed", (payload: { currentStep: RoomTimeline["currentStep"] }) => {
       setTimeline((current) =>
         current ? { ...current, currentStep: payload.currentStep } : current
@@ -437,6 +578,12 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
   }, [recordingStatus]);
 
   useEffect(() => {
+    if (!materialsSyncMessage) return;
+    const timer = window.setTimeout(() => setMaterialsSyncMessage(null), 3500);
+    return () => window.clearTimeout(timer);
+  }, [materialsSyncMessage]);
+
+  useEffect(() => {
     return () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.ondataavailable = null;
@@ -452,10 +599,68 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
     recordingStreamRef.current = null;
   }
 
+  function requestRecordingConsent() {
+    if (!socketRef.current || !room || !canRecordPodcast) {
+      setError("Join the room as a Pro or Super account before requesting recording consent.");
+      return;
+    }
+
+    setRecordingConsentAction("requesting");
+    setError(null);
+    setRecordingMessage(null);
+    socketRef.current.emit("recording:consent-request", {}, (ack: RealtimeAck) => {
+      setRecordingConsentAction(null);
+      if (ack.ok) {
+        if (ack.state) setRealtimeState(ack.state);
+        setRecordingMessage("Recording consent request sent to everyone in this room.");
+      } else {
+        setError(ack.error ?? "Unable to request recording consent.");
+      }
+    });
+  }
+
+  function respondRecordingConsent(decision: "APPROVED" | "REJECTED") {
+    if (!socketRef.current || !room) {
+      setError("Join the room before responding to recording consent.");
+      return;
+    }
+
+    setRecordingConsentAction("responding");
+    setError(null);
+    socketRef.current.emit("recording:consent-response", { decision }, (ack: RealtimeAck) => {
+      setRecordingConsentAction(null);
+      if (ack.ok) {
+        if (ack.state) setRealtimeState(ack.state);
+      } else {
+        setError(ack.error ?? "Unable to submit recording consent.");
+      }
+    });
+  }
+
+  function cancelRecordingConsent() {
+    if (!socketRef.current || !room) return;
+
+    setRecordingConsentAction("cancelling");
+    setError(null);
+    socketRef.current.emit("recording:consent-cancel", {}, (ack: RealtimeAck) => {
+      setRecordingConsentAction(null);
+      if (ack.ok) {
+        if (ack.state) setRealtimeState(ack.state);
+        setRecordingMessage(null);
+      } else {
+        setError(ack.error ?? "Unable to cancel recording consent.");
+      }
+    });
+  }
+
   async function startSuperRecording() {
     const token = accessToken ?? window.localStorage.getItem("lucy.accessToken") ?? undefined;
     if (!room || !token || !canRecordPodcast) {
-      setError("Only a signed-in Super account can record a room podcast.");
+      setError("Only a signed-in Pro or Super account can record a room podcast.");
+      return;
+    }
+    if (!recordingConsentReady) {
+      setError("Request recording consent and wait for every other participant to approve before recording.");
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
@@ -581,6 +786,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
         })
       });
       setRoom(created);
+      writeActiveRoomSession(created);
       await refreshRoom(created.roomCode);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create room");
@@ -601,7 +807,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
         : await request<LiveRoom>(`/api/rooms/${encodeURIComponent(query.toUpperCase())}`);
       setRoomSearchResult(found);
     } catch {
-      setError(`No room was found for “${query}”. Check the room ID or code and try again.`);
+      setError(`No room was found for "${query}". Check the room ID or code and try again.`);
     } finally {
       setRoomSearchLoading(false);
     }
@@ -613,11 +819,19 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
       return;
     }
 
+    const accessError = learnerRoomAccessError(authUser ?? readStoredUser(), targetRoom);
+    if (accessError) {
+      setError(accessError);
+      showLearnerLevelNotice(accessError);
+      return;
+    }
+
     setError(null);
     setLanguage(targetRoom.languageCode);
     setStage(targetRoom.stageNumber);
     setLevelId(targetRoom.levelId);
     setRoom(targetRoom);
+    writeActiveRoomSession(targetRoom);
     await refreshRoom(targetRoom.roomCode);
   }
 
@@ -625,10 +839,12 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       stopSuperRecording();
     }
+    const roomCode = room?.roomCode;
     setRoom(null);
     setTimeline(null);
     setMaterials([]);
     setActiveMaterialId(null);
+    if (roomCode) clearActiveRoomSession(roomCode);
     setError(null);
     setGiftNotice(null);
   }
@@ -696,6 +912,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
     setMaterialTitle("");
     setMaterialUrl("");
     setMaterialDescription("");
+    setMaterialsSyncMessage("Pinned slide saved. Syncing room...");
     await refreshRoom(room.roomCode);
   }
 
@@ -707,6 +924,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
     if (activeMaterialId === materialId) {
       setActiveMaterialId(null);
     }
+    setMaterialsSyncMessage("Pinned slide removed. Syncing room...");
     await refreshRoom(room.roomCode);
   }
 
@@ -801,6 +1019,30 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
         </button>
       </header>
 
+      {roomAccessNotice ? (
+        <div className="fixed left-3 right-3 top-3 z-[80] sm:left-auto sm:right-5 sm:top-5 sm:w-[420px]">
+          <div className="rounded-2xl border border-red-500/30 bg-[#180a12]/95 p-4 shadow-panel backdrop-blur">
+            <div className="flex items-start gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-red-500/15 text-red-200">
+                <AlertTriangle className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-black text-white">{roomAccessNotice.title}</div>
+                <p className="mt-1 text-sm leading-6 text-red-100/85">{roomAccessNotice.message}</p>
+              </div>
+              <button
+                className="grid size-8 shrink-0 place-items-center rounded-full border border-white/10 text-red-100/70 hover:bg-white/10 hover:text-white"
+                type="button"
+                onClick={() => setRoomAccessNotice(null)}
+                aria-label="Dismiss room access notice"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <main className="px-5 py-7 md:px-10">
         <section className="mb-7 rounded-3xl border border-white/10 bg-white/[0.025] p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -845,16 +1087,22 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
             <p className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>
           ) : null}
 
+          {restoringRoom && !room ? (
+            <p className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-200">
+              Restoring your active room...
+            </p>
+          ) : null}
+
           {roomSearchResult ? (
             <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={roomSearchResult.status === "ACTIVE" ? "teal" : "outline"}>{roomSearchResult.status}</Badge>
-                  <span className="font-mono text-xs text-muted-foreground">ID {roomSearchResult.id} · {roomSearchResult.roomCode}</span>
+                  <span className="font-mono text-xs text-muted-foreground">ID {roomSearchResult.id} - {roomSearchResult.roomCode}</span>
                 </div>
                 <div className="mt-2 font-black text-white">{roomSearchResult.displayName}</div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {roomSearchResult.languageCode} · Level {roomSearchResult.levelNumber} · Stage {roomSearchResult.stageNumber}
+                  {roomSearchResult.languageCode} - Level {roomSearchResult.levelNumber} - Stage {roomSearchResult.stageNumber}
                 </p>
               </div>
               <Button onClick={() => joinRoom(roomSearchResult)} disabled={roomSearchResult.status !== "ACTIVE"}>
@@ -1094,6 +1342,94 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
         </section>
         ) : null}
 
+        {room && recordingConsent ? (
+          <section className="mt-7 rounded-3xl border border-amber-500/25 bg-amber-500/[0.08] p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-amber-200">
+                    <Podcast className="size-3.5" /> Recording consent
+                  </span>
+                  <Badge
+                    variant={
+                      recordingConsent.status === "APPROVED"
+                        ? "teal"
+                        : recordingConsent.status === "REJECTED"
+                          ? "coral"
+                          : "outline"
+                    }
+                  >
+                    {recordingConsent.status}
+                  </Badge>
+                </div>
+                <h3 className="mt-3 text-lg font-black text-white">
+                  {recordingConsent.creatorDisplayName} requested permission to record this room.
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Recording can start only after every other current participant approves.
+                  {recordingConsentRequiredCount > 0
+                    ? ` Approved ${recordingConsentApprovedCount}/${recordingConsentRequiredCount}.`
+                    : " No other participant is currently required to approve."}
+                </p>
+                {currentConsentResponse ? (
+                  <p className="mt-2 text-sm font-bold text-white">
+                    Your response: {currentConsentResponse.decision === "APPROVED" ? "Approved" : "Declined"}
+                  </p>
+                ) : null}
+                {recordingConsent.status === "REJECTED" ? (
+                  <p className="mt-2 text-sm font-bold text-red-200">
+                    This recording request was declined. The creator must request consent again before recording.
+                  </p>
+                ) : null}
+                {recordingConsent.status === "APPROVED" ? (
+                  <p className="mt-2 flex items-center gap-2 text-sm font-bold text-emerald-200">
+                    <CheckCircle2 className="size-4" /> Everyone required has approved.
+                  </p>
+                ) : null}
+              </div>
+
+              {recordingConsent.status === "PENDING" &&
+              currentParticipant &&
+              !isRecordingCreator &&
+              recordingConsent.requiredParticipantPersonaIds.includes(currentParticipant.personaId) &&
+              !currentConsentResponse ? (
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => respondRecordingConsent("APPROVED")}
+                    disabled={recordingConsentAction === "responding"}
+                  >
+                    <CheckCircle2 className="size-4" />
+                    Allow
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => respondRecordingConsent("REJECTED")}
+                    disabled={recordingConsentAction === "responding"}
+                  >
+                    <X className="size-4" />
+                    Decline
+                  </Button>
+                </div>
+              ) : isRecordingCreator && recordingConsent.status === "PENDING" ? (
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={cancelRecordingConsent}
+                    disabled={recordingConsentAction === "cancelling"}
+                  >
+                    <X className="size-4" />
+                    Cancel request
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
         <section className="mt-8">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">On Stage</p>
@@ -1166,7 +1502,7 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
           <section className="mt-8 rounded-3xl border border-emerald-500/25 bg-emerald-500/[0.07] p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Super Recorder</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Pro Podcast Studio</p>
                 <h3 className="mt-2 flex items-center gap-2 text-lg font-black text-white">
                   <Podcast className="size-5 text-emerald-300" />
                   Record this room as a podcast
@@ -1206,11 +1542,27 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
                   <Button
                     type="button"
                     className="h-10"
-                    onClick={startSuperRecording}
-                    disabled={recordingStatus === "starting" || recordingStatus === "publishing"}
+                    onClick={recordingConsentReady ? startSuperRecording : requestRecordingConsent}
+                    disabled={
+                      recordingStatus === "starting" ||
+                      recordingStatus === "publishing" ||
+                      recordingConsentAction === "requesting" ||
+                      (isRecordingCreator && recordingConsent?.status === "PENDING") ||
+                      Boolean(recordingConsent && recordingConsent.status !== "REJECTED" && !isRecordingCreator)
+                    }
                   >
                     <Podcast className="size-4" />
-                    {recordingStatus === "starting" ? "Starting..." : "Record"}
+                    {recordingStatus === "starting"
+                      ? "Starting..."
+                      : recordingConsentAction === "requesting"
+                        ? "Requesting..."
+                        : isRecordingCreator && recordingConsent?.status === "PENDING"
+                          ? "Waiting approvals"
+                          : recordingConsent && !isRecordingCreator
+                            ? "Consent active"
+                          : recordingConsentReady
+                            ? "Record"
+                            : "Request consent"}
                   </Button>
                 )}
                 <Button asChild type="button" variant="outline" className="h-10">
@@ -1388,9 +1740,22 @@ export function RoomStudio({ languages, initialLevels, initialLanguage }: RoomSt
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
-            <h3 className="flex items-center gap-2 font-black text-white">
-              <Presentation className="size-5 text-primary" /> {canModerate ? "Pin slide to room" : "Pinned materials"}
-            </h3>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-2 font-black text-white">
+                  <Presentation className="size-5 text-primary" /> {canModerate ? "Pin slide to room" : "Pinned materials"}
+                </h3>
+                <p className="mt-2 text-xs font-bold text-muted-foreground">
+                  Updates sync instantly for everyone in this room.
+                </p>
+              </div>
+              <Badge variant="teal">Realtime sync</Badge>
+            </div>
+            {materialsSyncMessage ? (
+              <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-200">
+                {materialsSyncMessage}
+              </div>
+            ) : null}
             {canModerate ? (
             <form className="mt-4 grid gap-3" onSubmit={pinMaterial}>
               <div className="grid grid-cols-3 gap-2">

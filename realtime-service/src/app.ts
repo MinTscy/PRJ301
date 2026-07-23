@@ -10,7 +10,7 @@ import { RoomRegistry } from "./room-registry.js";
 import { StageMonitor } from "./stage-monitor.js";
 import { buildTopicTimeline } from "./topic-timeline.js";
 import { RecordingStore } from "./recording-store.js";
-import type { AccountRole, AuthUser, GiftEvent, ParticipantRole, ParticipantState } from "./types.js";
+import type { AccountRole, AuthUser, GiftEvent, LiveRoom, ParticipantRole, ParticipantState } from "./types.js";
 
 const tokenRequestSchema = z.object({
   roomCode: z.string().trim().min(1).max(50),
@@ -35,9 +35,19 @@ const recordingStartSchema = z.object({
   roomCode: z.string().trim().min(1).max(50),
   title: z.string().trim().min(1).max(160)
 });
+const recordingConsentResponseSchema = z.object({
+  decision: z.enum(["APPROVED", "REJECTED"])
+});
+const podcastUpdateSchema = z.object({
+  title: z.string().trim().min(1).max(160)
+});
 const recordingCompleteSchema = z.object({
   audioUrl: z.string().url(),
   durationSeconds: z.number().int().positive().max(86400).nullable().default(null)
+});
+const materialsChangedSchema = z.object({
+  action: z.enum(["PINNED", "UNPINNED"]),
+  materialId: z.number().int().positive().nullable().default(null)
 });
 const giftEventSchema = z.object({
   id: z.string().min(1),
@@ -92,6 +102,7 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
     runtimeConfig.stagePollIntervalMs,
     runtimeConfig.topicDurationMinutes
   );
+  const learnerLevelTimers = new Map<string, NodeJS.Timeout>();
 
   app.use(cors({ origin: runtimeConfig.frontendOrigins }));
   app.use(express.json());
@@ -136,12 +147,45 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
     response.json(recordings.list(roomCode));
   });
 
+  app.get("/api/realtime/podcasts/mine", async (request, response, next) => {
+    try {
+      const user = await requireUser(request, javaClient, ["LUCY_PRO", "LUCY_SUPER"]);
+      response.json(recordings.listOwned(user.personaId));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/realtime/podcasts/:id", async (request, response, next) => {
+    try {
+      const user = await requireUser(request, javaClient, ["LUCY_PRO", "LUCY_SUPER"]);
+      const payload = podcastUpdateSchema.parse(request.body);
+      response.json(recordings.updateMetadata(request.params.id, user.personaId, payload.title));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/realtime/podcasts/:id", async (request, response, next) => {
+    try {
+      const user = await requireUser(request, javaClient, ["LUCY_PRO", "LUCY_SUPER"]);
+      recordings.delete(request.params.id, user.personaId);
+      response.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/realtime/recordings", async (request, response, next) => {
     try {
-      const user = await requireUser(request, javaClient, ["LUCY_SUPER"]);
+      const user = await requireUser(request, javaClient, ["LUCY_PRO", "LUCY_SUPER"]);
       const payload = recordingStartSchema.parse(request.body);
       const room = await javaClient.getRoom(payload.roomCode);
-      response.status(201).json(recordings.start(room.roomCode, payload.title, user));
+      registry.assertRecordingConsentApproved(room.roomCode, user.personaId);
+      const recording = recordings.start(room.roomCode, payload.title, user);
+      registry.clearRecordingConsent(room.roomCode, user.personaId);
+      io.to(room.roomCode).emit("room:state", registry.snapshot(room.roomCode));
+      response.status(201).json(recording);
     } catch (error) {
       next(error);
     }
@@ -152,7 +196,7 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
     express.raw({ type: ["audio/*", "application/octet-stream"], limit: "100mb" }),
     async (request, response, next) => {
       try {
-        const user = await requireUser(request, javaClient, ["LUCY_SUPER"]);
+        const user = await requireUser(request, javaClient, ["LUCY_PRO", "LUCY_SUPER"]);
         const duration = request.query.durationSeconds ? Number(request.query.durationSeconds) : null;
         if (duration !== null && (!Number.isInteger(duration) || duration <= 0 || duration > 86400)) {
           throw new Error("durationSeconds must be a positive integer up to 86400.");
@@ -172,7 +216,7 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
 
   app.post("/api/realtime/recordings/:id/complete", async (request, response, next) => {
     try {
-      const user = await requireUser(request, javaClient, ["LUCY_SUPER"]);
+      const user = await requireUser(request, javaClient, ["LUCY_PRO", "LUCY_SUPER"]);
       const payload = recordingCompleteSchema.parse(request.body);
       response.json(recordings.completeExternal(
         request.params.id, user.personaId, payload.audioUrl, payload.durationSeconds));
@@ -224,12 +268,34 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
     }
   });
 
+  app.post("/internal/rooms/:roomCode/materials/changed", async (request, response, next) => {
+    try {
+      if (request.header("X-LUCY-INTERNAL-SECRET") !== runtimeConfig.internalServiceSecret) {
+        response.status(401).json({ message: "Invalid internal service secret." });
+        return;
+      }
+      const payload = materialsChangedSchema.parse(request.body);
+      const roomCode = request.params.roomCode.trim().toUpperCase();
+      const event = {
+        roomCode,
+        action: payload.action,
+        materialId: payload.materialId,
+        changedAt: new Date().toISOString()
+      };
+      io.to(roomCode).emit("materials:changed", event);
+      response.status(202).json({ delivered: true, ...event });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   io.on("connection", (socket) => {
     socket.on("room:join", async (rawPayload: unknown, ack: Ack = () => undefined) => {
       try {
         const payload = joinSchema.parse(rawPayload);
         const room = await javaClient.getRoom(payload.roomCode);
         const authUser = payload.accessToken ? await javaClient.getCurrentUser(payload.accessToken) : null;
+        validateLearnerRoomAccess(room, authUser);
         const accountRole: AccountRole = authUser?.role ?? "LUCY";
         const participantRole: ParticipantRole =
           accountRole === "LUCY_PRO" || accountRole === "LUCY_SUPER" ? "moderator" : "audience";
@@ -252,6 +318,7 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
 
         socket.data.roomCode = room.roomCode;
         socket.data.personaId = participant.personaId;
+        socket.data.authPersonaId = authUser?.personaId;
         socket.data.accountRole = participant.accountRole;
         socket.join(room.roomCode);
         const state = registry.join(room.roomCode, participant);
@@ -260,6 +327,7 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
         registry.updateTimeline(room.roomCode, timeline);
         io.to(room.roomCode).emit("room:state", registry.snapshot(room.roomCode));
         socket.emit("timeline:updated", timeline);
+        scheduleLearnerLevelProgress(socket, room, authUser, javaClient, runtimeConfig.internalServiceSecret, runtimeConfig.learnerLevelUpMinutes, learnerLevelTimers);
         ack({ ok: true, state });
       } catch (error) {
         ack({ ok: false, error: errorMessage(error) });
@@ -298,7 +366,51 @@ export function createRealtimeApplication(runtimeConfig: RealtimeConfig): Realti
       moderateSpeaker(socket, rawPayload, false, registry, io, ack);
     });
 
+    socket.on("recording:consent-request", (_payload: unknown, ack: Ack = () => undefined) => {
+      try {
+        const participant = currentParticipant(socket, registry);
+        if (participant.accountRole !== "LUCY_PRO" && participant.accountRole !== "LUCY_SUPER") {
+          throw new Error("Only Pro or Super accounts can request recording consent.");
+        }
+        const roomCode = socket.data.roomCode as string | undefined;
+        if (!roomCode) throw new Error("Join a room before requesting recording consent.");
+        const state = registry.requestRecordingConsent(roomCode, participant.personaId);
+        io.to(roomCode).emit("room:state", state);
+        ack({ ok: true, state });
+      } catch (error) {
+        ack({ ok: false, error: errorMessage(error) });
+      }
+    });
+
+    socket.on("recording:consent-response", (rawPayload: unknown, ack: Ack = () => undefined) => {
+      try {
+        const participant = currentParticipant(socket, registry);
+        const roomCode = socket.data.roomCode as string | undefined;
+        if (!roomCode) throw new Error("Join a room before responding to recording consent.");
+        const payload = recordingConsentResponseSchema.parse(rawPayload);
+        const state = registry.respondToRecordingConsent(roomCode, participant.personaId, payload.decision);
+        io.to(roomCode).emit("room:state", state);
+        ack({ ok: true, state });
+      } catch (error) {
+        ack({ ok: false, error: errorMessage(error) });
+      }
+    });
+
+    socket.on("recording:consent-cancel", (_payload: unknown, ack: Ack = () => undefined) => {
+      try {
+        const participant = currentParticipant(socket, registry);
+        const roomCode = socket.data.roomCode as string | undefined;
+        if (!roomCode) throw new Error("Join a room before cancelling recording consent.");
+        const state = registry.cancelRecordingConsent(roomCode, participant.personaId);
+        io.to(roomCode).emit("room:state", state);
+        ack({ ok: true, state });
+      } catch (error) {
+        ack({ ok: false, error: errorMessage(error) });
+      }
+    });
+
     socket.on("disconnect", () => {
+      clearLearnerLevelTimer(socket.id, learnerLevelTimers);
       const roomCode = registry.leave(socket.id);
       if (roomCode) io.to(roomCode).emit("room:state", registry.snapshot(roomCode));
     });
@@ -409,6 +521,88 @@ function authorizeAudioRole(
   if (participant?.participantRole !== "speaker") {
     throw new Error("Speaker token requires moderator approval.");
   }
+}
+
+function validateLearnerRoomAccess(room: LiveRoom, authUser: AuthUser | null) {
+  if (authUser?.role === "LUCY_PRO" || authUser?.role === "LUCY_SUPER") return;
+  if (!authUser) {
+    throw new Error("A learner account is required before joining a room.");
+  }
+  if (authUser.role !== "LUCY") {
+    throw new Error("Unsupported account role for room access.");
+  }
+
+  const learnerLevel = learnerLevelForLanguage(authUser, room.languageCode);
+  const requiredLevel = Math.max(1, room.levelNumber - 1);
+  if (learnerLevel < requiredLevel) {
+    throw new Error(
+      `Your ${room.languageCode} learner level is ${learnerLevel}. This room requires level ${requiredLevel} or higher.`
+    );
+  }
+}
+
+function scheduleLearnerLevelProgress(
+  socket: Socket,
+  room: LiveRoom,
+  authUser: AuthUser | null,
+  javaClient: JavaLmsClient,
+  internalServiceSecret: string,
+  learnerLevelUpMinutes: number,
+  learnerLevelTimers: Map<string, NodeJS.Timeout>
+) {
+  clearLearnerLevelTimer(socket.id, learnerLevelTimers);
+  if (authUser?.role !== "LUCY") return;
+
+  const learnerLevel = learnerLevelForLanguage(authUser, room.languageCode);
+  if (learnerLevel !== room.levelNumber) return;
+
+  const timer = setTimeout(() => {
+    const activeRoomCode = socket.data.roomCode as string | undefined;
+    if (activeRoomCode !== room.roomCode || !socket.connected) return;
+
+    javaClient.advanceLearnerLevel(
+      authUser.personaId,
+      {
+        languageCode: room.languageCode,
+        completedLevelNumber: room.levelNumber,
+        minutesInRoom: learnerLevelUpMinutes
+      },
+      internalServiceSecret
+    )
+      .then((updatedUser) => {
+        socket.emit("learner:level-updated", {
+          roomCode: room.roomCode,
+          languageCode: room.languageCode,
+          completedLevelNumber: room.levelNumber,
+          user: updatedUser
+        });
+      })
+      .catch((error) => {
+        socket.emit("realtime:error", { message: errorMessage(error) });
+      })
+      .finally(() => clearLearnerLevelTimer(socket.id, learnerLevelTimers));
+  }, learnerLevelUpMinutes * 60 * 1000);
+
+  learnerLevelTimers.set(socket.id, timer);
+}
+
+function clearLearnerLevelTimer(socketId: string, learnerLevelTimers: Map<string, NodeJS.Timeout>) {
+  const timer = learnerLevelTimers.get(socketId);
+  if (timer) clearTimeout(timer);
+  learnerLevelTimers.delete(socketId);
+}
+
+function learnerLevelForLanguage(user: AuthUser, languageCode: string): number {
+  const normalized = languageCode.trim().toUpperCase();
+  const level =
+    normalized === "EN"
+      ? user.learnerEnglishLevel
+      : normalized === "JA"
+        ? user.learnerJapaneseLevel
+        : normalized === "ZH"
+          ? user.learnerChineseLevel
+          : null;
+  return Math.max(1, Math.min(100, level ?? 1));
 }
 
 function errorMessage(error: unknown): string {

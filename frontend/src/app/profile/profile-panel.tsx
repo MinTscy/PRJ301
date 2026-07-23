@@ -2,18 +2,24 @@
 
 import {
   AtSign,
+  Award,
   BookOpenCheck,
+  Building2,
   CheckCircle2,
   Coins,
+  ExternalLink,
   FileText,
   GraduationCap,
   History,
+  Languages,
   LogOut,
   Pencil,
+  Phone,
   Podcast,
   ReceiptText,
   RefreshCw,
   Save,
+  Trophy,
   UserRound,
   UsersRound,
   WalletCards,
@@ -73,7 +79,66 @@ function EmptyCollection({ children }: { children: ReactNode }) {
   return <EmptyState>{children}</EmptyState>;
 }
 
-export function ProfilePanel() {
+function optionalText(value?: string | null) {
+  return value?.trim() ? value.trim() : null;
+}
+
+function profileLanguageLabel(user: AuthUser) {
+  if (user.role === "LUCY") return optionalText(user.learningLanguages);
+  return optionalText(user.teachingLanguages);
+}
+
+function learnerLevels(user: AuthUser) {
+  return [
+    { code: "EN", label: "English", level: user.learnerEnglishLevel ?? 1 },
+    { code: "JA", label: "Japanese", level: user.learnerJapaneseLevel ?? 1 },
+    { code: "ZH", label: "Chinese", level: user.learnerChineseLevel ?? 1 }
+  ];
+}
+
+function DetailTile({ icon, label, value }: { icon: ReactNode; label: string; value?: string | null }) {
+  const text = optionalText(value);
+  if (!text) return null;
+
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+      <span className="shrink-0 text-primary">{icon}</span>
+      <div className="min-w-0">
+        <div className="text-xs font-black uppercase text-muted-foreground">{label}</div>
+        <div className="mt-0.5 truncate text-sm text-white">{text}</div>
+      </div>
+    </div>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  maxLength,
+  placeholder
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  maxLength: number;
+  placeholder?: string;
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-bold text-white">
+      {label}
+      <textarea
+        maxLength={maxLength}
+        placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-28 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-ring"
+      />
+    </label>
+  );
+}
+
+export function ProfilePanel({ profileId }: { profileId?: string }) {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [wallet, setWallet] = useState<WalletSnapshot | null>(null);
@@ -83,6 +148,15 @@ export function ProfilePanel() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [draftDisplayName, setDraftDisplayName] = useState("");
   const [draftEmail, setDraftEmail] = useState("");
+  const [draftPhoneNumber, setDraftPhoneNumber] = useState("");
+  const [draftLearningLanguages, setDraftLearningLanguages] = useState("");
+  const [draftTeachingLanguages, setDraftTeachingLanguages] = useState("");
+  const [draftCertificates, setDraftCertificates] = useState("");
+  const [draftAchievements, setDraftAchievements] = useState("");
+  const [draftBrandName, setDraftBrandName] = useState("");
+  const [draftFacebookUrl, setDraftFacebookUrl] = useState("");
+  const [draftYoutubeUrl, setDraftYoutubeUrl] = useState("");
+  const [draftBio, setDraftBio] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -112,15 +186,26 @@ export function ProfilePanel() {
   }, []);
 
   useEffect(() => {
-    setUser(readStoredUser());
+    const storedUser = readStoredUser();
+    setUser(storedUser);
+    if (storedUser) {
+      const expectedPath = `/profile/${storedUser.id}`;
+      if (profileId !== String(storedUser.id)) {
+        router.replace(expectedPath);
+      }
+    }
     void loadWallet();
 
     const handleSession = (event: Event) => {
-      setUser((event as CustomEvent<AuthUser | null>).detail ?? readStoredUser());
+      const nextUser = (event as CustomEvent<AuthUser | null>).detail ?? readStoredUser();
+      setUser(nextUser);
+      if (nextUser && profileId !== String(nextUser.id)) {
+        router.replace(`/profile/${nextUser.id}`);
+      }
     };
     window.addEventListener(AUTH_SESSION_EVENT, handleSession);
     return () => window.removeEventListener(AUTH_SESSION_EVENT, handleSession);
-  }, [loadWallet]);
+  }, [loadWallet, profileId, router]);
 
   async function logout() {
     const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
@@ -135,6 +220,15 @@ export function ProfilePanel() {
     if (!user) return;
     setDraftDisplayName(user.displayName);
     setDraftEmail(user.email);
+    setDraftPhoneNumber(user.phoneNumber ?? "");
+    setDraftLearningLanguages(user.learningLanguages ?? "");
+    setDraftTeachingLanguages(user.teachingLanguages ?? "");
+    setDraftCertificates(user.certificates ?? "");
+    setDraftAchievements(user.achievements ?? "");
+    setDraftBrandName(user.brandName ?? "");
+    setDraftFacebookUrl(user.facebookUrl ?? "");
+    setDraftYoutubeUrl(user.youtubeUrl ?? "");
+    setDraftBio(user.bio ?? "");
     setProfileMessage(null);
     setProfileError(null);
     setEditingProfile(true);
@@ -147,6 +241,10 @@ export function ProfilePanel() {
     setProfileMessage(null);
     setProfileError(null);
 
+    if (!user) {
+      setProfileError("Profile information is unavailable. Please sign in again.");
+      return;
+    }
     if (!token) {
       setProfileError("Your session has expired. Please sign in again.");
       return;
@@ -158,7 +256,20 @@ export function ProfilePanel() {
 
     setProfileSaving(true);
     try {
-      const updatedUser = await api.updateProfile(token, { displayName, email });
+      const profilePayload = {
+        displayName,
+        email,
+        phoneNumber: optionalText(draftPhoneNumber),
+        learningLanguages: user.role === "LUCY" ? optionalText(draftLearningLanguages) : null,
+        teachingLanguages: user.role !== "LUCY" ? optionalText(draftTeachingLanguages) : null,
+        certificates: user.role === "LUCY_PRO" ? optionalText(draftCertificates) : null,
+        achievements: user.role === "LUCY_PRO" ? optionalText(draftAchievements) : null,
+        brandName: user.role === "LUCY_SUPER" ? optionalText(draftBrandName) : null,
+        facebookUrl: user.role === "LUCY_SUPER" ? optionalText(draftFacebookUrl) : null,
+        youtubeUrl: user.role === "LUCY_SUPER" ? optionalText(draftYoutubeUrl) : null,
+        bio: optionalText(draftBio)
+      };
+      const updatedUser = await api.updateProfile(token, profilePayload);
       setUser(updatedUser);
       updateStoredUser(updatedUser);
       setEditingProfile(false);
@@ -244,18 +355,63 @@ export function ProfilePanel() {
                     </Button>
                   ) : null}
                 </div>
-                <div className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
-                  <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                    <AtSign className="size-4 text-primary" />
-                    <span className="truncate">{user.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                    <UserRound className="size-4 text-primary" />
-                    <span className="truncate font-mono text-xs">{user.personaId}</span>
-                  </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <DetailTile icon={<AtSign className="size-4" />} label="Email" value={user.email} />
+                  <DetailTile icon={<UserRound className="size-4" />} label="Persona" value={user.personaId} />
+                  <DetailTile icon={<Phone className="size-4" />} label="Phone" value={user.phoneNumber} />
+                  <DetailTile
+                    icon={<Languages className="size-4" />}
+                    label={user.role === "LUCY" ? "Learning languages" : "Languages"}
+                    value={profileLanguageLabel(user)}
+                  />
                 </div>
               </div>
             </div>
+
+            {!editingProfile && user.role === "LUCY" ? (
+              <div className="mt-6 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+                <div className="flex items-center gap-2 text-xs font-black uppercase text-emerald-200">
+                  <GraduationCap className="size-4" /> Learner levels
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  {learnerLevels(user).map((item) => (
+                    <div key={item.code} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                      <div className="text-xs font-black uppercase text-muted-foreground">{item.label}</div>
+                      <div className="mt-1 text-2xl font-black text-white">Level {item.level}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {!editingProfile && optionalText(user.bio) ? (
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="flex items-center gap-2 text-xs font-black uppercase text-muted-foreground">
+                  <FileText className="size-4 text-primary" /> Description
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-white">{optionalText(user.bio)}</p>
+              </div>
+            ) : null}
+
+            {!editingProfile && isCreator ? (
+              <div className="mt-6 grid gap-4 border-t border-white/10 pt-6">
+                {user.role === "LUCY_PRO" ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <DetailTile icon={<Award className="size-4" />} label="Certificates" value={user.certificates} />
+                    <DetailTile icon={<Trophy className="size-4" />} label="Achievements" value={user.achievements} />
+                  </div>
+                ) : null}
+                {user.role === "LUCY_SUPER" ? (
+                  <>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <DetailTile icon={<Building2 className="size-4" />} label="Brand" value={user.brandName} />
+                      <DetailTile icon={<ExternalLink className="size-4" />} label="Facebook" value={user.facebookUrl} />
+                      <DetailTile icon={<ExternalLink className="size-4" />} label="YouTube" value={user.youtubeUrl} />
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
 
             {editingProfile ? (
               <form
@@ -280,11 +436,113 @@ export function ProfilePanel() {
                     <Input
                       type="email"
                       maxLength={180}
+                      disabled
                       value={draftEmail}
                       onChange={(event) => setDraftEmail(event.target.value)}
+                      className="cursor-not-allowed opacity-70"
                     />
                   </label>
+                  <label className="grid gap-2 text-sm font-bold text-white">
+                    Phone number
+                    <Input
+                      type="tel"
+                      maxLength={40}
+                      placeholder="+84 900 000 000"
+                      value={draftPhoneNumber}
+                      onChange={(event) => setDraftPhoneNumber(event.target.value)}
+                    />
+                  </label>
+                  {user.role === "LUCY" ? (
+                    <label className="grid gap-2 text-sm font-bold text-white">
+                      Learning languages
+                      <Input
+                        maxLength={240}
+                        placeholder="English, Japanese"
+                        value={draftLearningLanguages}
+                        onChange={(event) => setDraftLearningLanguages(event.target.value)}
+                      />
+                    </label>
+                  ) : (
+                    <label className="grid gap-2 text-sm font-bold text-white">
+                      Languages
+                      <Input
+                        maxLength={240}
+                        placeholder="English, Chinese"
+                        value={draftTeachingLanguages}
+                        onChange={(event) => setDraftTeachingLanguages(event.target.value)}
+                      />
+                    </label>
+                  )}
                 </div>
+                {user.role === "LUCY_PRO" ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <TextAreaField
+                      label="Certificates"
+                      maxLength={1000}
+                      placeholder="TESOL, IELTS, teaching credentials"
+                      value={draftCertificates}
+                      onChange={setDraftCertificates}
+                    />
+                    <TextAreaField
+                      label="Achievements"
+                      maxLength={1000}
+                      placeholder="Learner milestones, awards, published courses"
+                      value={draftAchievements}
+                      onChange={setDraftAchievements}
+                    />
+                  </div>
+                ) : null}
+                {user.role !== "LUCY_SUPER" ? (
+                  <TextAreaField
+                    label="Description"
+                    maxLength={1200}
+                    placeholder="Short personal introduction"
+                    value={draftBio}
+                    onChange={setDraftBio}
+                  />
+                ) : null}
+                {user.role === "LUCY_SUPER" ? (
+                  <div className="grid gap-4">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <label className="grid gap-2 text-sm font-bold text-white">
+                        Brand name
+                        <Input
+                          maxLength={160}
+                          placeholder="Lucy Speaking Lab"
+                          value={draftBrandName}
+                          onChange={(event) => setDraftBrandName(event.target.value)}
+                        />
+                      </label>
+                      <label className="grid gap-2 text-sm font-bold text-white">
+                        Facebook
+                        <Input
+                          type="url"
+                          maxLength={300}
+                          placeholder="https://facebook.com/..."
+                          value={draftFacebookUrl}
+                          onChange={(event) => setDraftFacebookUrl(event.target.value)}
+                        />
+                      </label>
+                      <label className="grid gap-2 text-sm font-bold text-white">
+                        YouTube
+                        <Input
+                          type="url"
+                          maxLength={300}
+                          placeholder="https://youtube.com/@..."
+                          value={draftYoutubeUrl}
+                          onChange={(event) => setDraftYoutubeUrl(event.target.value)}
+                        />
+                      </label>
+                    </div>
+                    <TextAreaField
+                      label="Description"
+                      maxLength={1200}
+                      placeholder="Short brand or creator introduction"
+                      value={draftBio}
+                      onChange={setDraftBio}
+                    />
+                  </div>
+                ) : null}
                 {profileError ? (
                   <div className="rounded-2xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300">
                     {profileError}

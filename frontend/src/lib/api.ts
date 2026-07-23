@@ -131,6 +131,18 @@ export type AuthUser = {
   id: number;
   email: string;
   displayName: string;
+  phoneNumber?: string | null;
+  learningLanguages?: string | null;
+  teachingLanguages?: string | null;
+  certificates?: string | null;
+  achievements?: string | null;
+  brandName?: string | null;
+  facebookUrl?: string | null;
+  youtubeUrl?: string | null;
+  bio?: string | null;
+  learnerEnglishLevel?: number | null;
+  learnerJapaneseLevel?: number | null;
+  learnerChineseLevel?: number | null;
   role: AccountRole;
   personaId: string;
   anonymous: boolean;
@@ -278,7 +290,15 @@ export const api = {
     request<void>(`/api/rooms/${roomCode}/materials/${materialId}`, {
       method: "DELETE"
     }),
-  register: (payload: { email: string; password: string; displayName: string; role: AccountRole }) =>
+  register: (payload: {
+    email: string;
+    password: string;
+    displayName: string;
+    role: AccountRole;
+    learnerEnglishLevel?: number;
+    learnerJapaneseLevel?: number;
+    learnerChineseLevel?: number;
+  }) =>
     request<AuthResponse>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify(payload)
@@ -294,7 +314,20 @@ export const api = {
         Authorization: `Bearer ${token}`
       }
     }),
-  updateProfile: (token: string, payload: { email: string; displayName: string }) =>
+  updateProfile: (token: string, payload: Partial<Pick<
+    AuthUser,
+    | "email"
+    | "displayName"
+    | "phoneNumber"
+    | "learningLanguages"
+    | "teachingLanguages"
+    | "certificates"
+    | "achievements"
+    | "brandName"
+    | "facebookUrl"
+    | "youtubeUrl"
+    | "bio"
+  >> & { email: string; displayName: string }) =>
     request<AuthUser>("/api/auth/me", {
       method: "PUT",
       headers: {

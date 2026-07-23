@@ -17,6 +17,8 @@ import com.lucy.lms.repository.SubLevelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -35,6 +37,7 @@ public class LiveRoomService {
     private final SubLevelRepository subLevelRepository;
     private final PinnedMaterialRepository pinnedMaterialRepository;
     private final RoomTimelineCalculator roomTimelineCalculator;
+    private final RealtimeRoomEventPublisher realtimeRoomEventPublisher;
     private final Clock clock = Clock.systemUTC();
 
     @Transactional
@@ -108,7 +111,9 @@ public class LiveRoomService {
                 .room(room)
                 .build());
 
-        return toPinnedMaterialDTO(material);
+        PinnedMaterialDTO pinnedMaterial = toPinnedMaterialDTO(material);
+        publishMaterialChangeAfterCommit(room.getRoomCode(), "PINNED", pinnedMaterial.id());
+        return pinnedMaterial;
     }
 
     @Transactional(readOnly = true)
@@ -130,6 +135,7 @@ public class LiveRoomService {
         }
 
         pinnedMaterialRepository.delete(material);
+        publishMaterialChangeAfterCommit(room.getRoomCode(), "UNPINNED", materialId);
     }
 
     private LiveRoom getRoomByCode(String roomCode) {
@@ -159,6 +165,20 @@ public class LiveRoomService {
             return null;
         }
         return value.trim();
+    }
+
+    private void publishMaterialChangeAfterCommit(String roomCode, String action, Long materialId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    realtimeRoomEventPublisher.publishMaterialsChanged(roomCode, action, materialId);
+                }
+            });
+            return;
+        }
+
+        realtimeRoomEventPublisher.publishMaterialsChanged(roomCode, action, materialId);
     }
 
     private LiveRoomDTO toLiveRoomDTO(LiveRoom room) {

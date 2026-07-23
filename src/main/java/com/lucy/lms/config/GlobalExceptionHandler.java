@@ -3,6 +3,7 @@ package com.lucy.lms.config;
 import com.lucy.lms.service.BadRequestException;
 import com.lucy.lms.service.ResourceNotFoundException;
 import com.lucy.lms.service.UnauthorizedException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -39,6 +40,17 @@ public class GlobalExceptionHandler {
                         "status", HttpStatus.BAD_REQUEST.value(),
                         "error", HttpStatus.BAD_REQUEST.getReasonPhrase(),
                         "message", message
+                ));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of(
+                        "timestamp", Instant.now(),
+                        "status", HttpStatus.BAD_REQUEST.value(),
+                        "error", HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                        "message", "Profile data violates database constraints"
                 ));
     }
 

@@ -3,6 +3,7 @@ package com.lucy.lms.controller;
 import com.lucy.lms.dto.AuthResponseDTO;
 import com.lucy.lms.dto.AuthUserDTO;
 import com.lucy.lms.dto.LoginRequestDTO;
+import com.lucy.lms.dto.LearnerLevelProgressRequestDTO;
 import com.lucy.lms.dto.RegisterRequestDTO;
 import com.lucy.lms.dto.UpdateProfileRequestDTO;
 import com.lucy.lms.service.AuthService;
@@ -72,6 +73,19 @@ public class AuthController {
             throw new UnauthorizedException("Invalid internal service secret");
         }
         return authService.findByPersonaId(personaId);
+    }
+
+    @PostMapping("/internal/personas/{personaId}/learner-level-progress")
+    @Operation(summary = "Advance a learner level after verified room attendance")
+    public AuthUserDTO advanceLearnerLevel(
+            @PathVariable String personaId,
+            @RequestHeader(value = "X-LUCY-INTERNAL-SECRET", required = false) String internalSecret,
+            @Valid @RequestBody LearnerLevelProgressRequestDTO request
+    ) {
+        if (!internalServiceSecret.equals(internalSecret)) {
+            throw new UnauthorizedException("Invalid internal service secret");
+        }
+        return authService.advanceLearnerLevel(personaId, request);
     }
 
     @PostMapping("/logout")

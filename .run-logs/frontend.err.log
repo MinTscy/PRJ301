@@ -1,0 +1,51 @@
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en">
+                          <body
+                            className="lucy-grid-bg min-h-screen"
+-                           __processed_ee7ab3e3-1d1e-44a3-896e-963852016b13__="true"
+-                           bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6Im5pbWxtZWpibW5lY25hZ2hnbWJhaG1iYWRk..."
+                          >
+                  ...
+ 
+[browser] 09:38:55:6 Agora-SDK [ERROR]: [client-91835] User join failed AgoraRTCError WS_ABORT: LEAVE 
+    at async joinAudio (src/lib/use-agora-audio.ts:363:9)
+  361 |         );
+  362 |         if (cancelled) return;
+> 363 |         await client.join(
+      |         ^
+  364 |           credentials.appId,
+  365 |           credentials.channel,
+  366 |           credentials.token, (src/lib/use-agora-audio.ts:363:9)
+[browser] 09:38:55:12 Agora-SDK [ERROR]: [client-91835] join number: 1, Joining channel failed, rollback AgoraRTCException: AgoraRTCError WS_ABORT: LEAVE (src/lib/use-agora-audio.ts:363:9)
+[browser] 09:38:55:17 Agora-SDK [WARNING]: [choose-best-ws] chooseBestWebsocket error: AgoraRTCError WS_ABORT: choose best websocket aborted
+[browser] 09:57:28:954 Agora-SDK [WARNING]: [client-3dc2c] ws request timeout, type: ping
+[browser] 09:59:04:721 Agora-SDK [WARNING]: [client-7d6a9] ws request timeout, type: ping

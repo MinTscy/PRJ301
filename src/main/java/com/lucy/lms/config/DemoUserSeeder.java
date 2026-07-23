@@ -42,6 +42,18 @@ public class DemoUserSeeder implements ApplicationRunner {
             appUserRepository.save(AppUser.builder()
                     .email(seedUser.email())
                     .displayName(seedUser.displayName())
+                    .phoneNumber(seedUser.phoneNumber())
+                    .learningLanguages(seedUser.learningLanguages())
+                    .teachingLanguages(seedUser.teachingLanguages())
+                    .certificates(seedUser.certificates())
+                    .achievements(seedUser.achievements())
+                    .brandName(seedUser.brandName())
+                    .facebookUrl(seedUser.facebookUrl())
+                    .youtubeUrl(seedUser.youtubeUrl())
+                    .bio(seedUser.bio())
+                    .learnerEnglishLevel(seedUser.learnerEnglishLevel())
+                    .learnerJapaneseLevel(seedUser.learnerJapaneseLevel())
+                    .learnerChineseLevel(seedUser.learnerChineseLevel())
                     .passwordHash(passwordEncoder.encode(DEFAULT_PASSWORD))
                     .role(seedUser.role())
                     .personaId(seedUser.personaId())
@@ -59,19 +71,91 @@ public class DemoUserSeeder implements ApplicationRunner {
                         "learner@lucy.local",
                         "Alex Kim",
                         AccountRole.LUCY,
-                        "persona_demo_learner"
+                        "persona_demo_learner",
+                        "+84 900 100 001",
+                        "English, Japanese",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        1,
+                        1,
+                        1,
+                        "Learner focused on everyday speaking confidence and structured language practice."
+                ),
+                new SeedUser(
+                        "learner5@lucy.local",
+                        "Mina Level 5",
+                        AccountRole.LUCY,
+                        "persona_demo_learner_level_5",
+                        "+84 900 100 005",
+                        "English, Japanese, Chinese",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        5,
+                        5,
+                        5,
+                        "Demo learner account with level 5 across English, Japanese, and Chinese."
+                ),
+                new SeedUser(
+                        "learner10@lucy.local",
+                        "Noah Level 10",
+                        AccountRole.LUCY,
+                        "persona_demo_learner_level_10",
+                        "+84 900 100 010",
+                        "English, Japanese, Chinese",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        10,
+                        10,
+                        10,
+                        "Demo learner account with level 10 across English, Japanese, and Chinese."
                 ),
                 new SeedUser(
                         "mentor@lucy.local",
                         "Sarah Chen",
                         AccountRole.LUCY_PRO,
-                        "persona_demo_pro"
+                        "persona_demo_pro",
+                        "+84 900 100 002",
+                        null,
+                        "English, Chinese",
+                        "TESOL, IELTS 8.0",
+                        "Hosted 120 live speaking sessions",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "Mentor profile for pronunciation coaching and live speaking-room moderation."
                 ),
                 new SeedUser(
                         "creator@lucy.local",
                         "Marcus Webb",
                         AccountRole.LUCY_SUPER,
-                        "persona_demo_super"
+                        "persona_demo_super",
+                        "+84 900 100 003",
+                        null,
+                        "English, Japanese",
+                        null,
+                        null,
+                        "Lucy Speaking Lab",
+                        "https://facebook.com/lucyspeakinglab",
+                        "https://youtube.com/@lucyspeakinglab",
+                        null,
+                        null,
+                        null,
+                        "Creator profile for brand-led speaking labs and podcast-led learner communities."
                 )
         );
     }
@@ -80,7 +164,19 @@ public class DemoUserSeeder implements ApplicationRunner {
             String email,
             String displayName,
             AccountRole role,
-            String personaId
+            String personaId,
+            String phoneNumber,
+            String learningLanguages,
+            String teachingLanguages,
+            String certificates,
+            String achievements,
+            String brandName,
+            String facebookUrl,
+            String youtubeUrl,
+            Integer learnerEnglishLevel,
+            Integer learnerJapaneseLevel,
+            Integer learnerChineseLevel,
+            String bio
     ) {
     }
 }
